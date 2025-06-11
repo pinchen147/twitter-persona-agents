@@ -85,7 +85,7 @@ class TweetGenerator:
                     input=[
                         {
                             "role": "system", 
-                            "content": "You are a tweet generator that synthesizes philosophical wisdom into engaging social media content. Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
+                            "content": "Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
                         },
                         {"role": "user", "content": prompt}
                     ],
@@ -108,7 +108,7 @@ class TweetGenerator:
                     messages=[
                         {
                             "role": "system", 
-                            "content": "You are a tweet generator that synthesizes philosophical wisdom into engaging social media content. Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
+                            "content": "Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
                         },
                         {"role": "user", "content": prompt}
                     ],
@@ -139,8 +139,8 @@ class TweetGenerator:
                     cost = (prompt_tokens * 0.0015 + completion_tokens * 0.006) / 1000
                 else:
                     cost = (prompt_tokens * 0.06 + completion_tokens * 0.24) / 1000  # Full o3/o4 pricing
-            elif "gpt-4o" in self.model.lower():
-                # GPT-4o pricing
+            elif "gpt-4.1" in self.model.lower():
+                # GPT-4.1 pricing (update with actual pricing when available)
                 cost = (prompt_tokens * 0.0025 + completion_tokens * 0.01) / 1000
             elif "gpt-4" in self.model.lower():
                 # GPT-4 pricing
@@ -219,7 +219,7 @@ class TweetGenerator:
             
             # Record cost based on shortening model
             total_tokens = response.usage.total_tokens
-            if "gpt-4o" in self.shortening_model.lower():
+            if "gpt-4.1" in self.shortening_model.lower():
                 cost = (response.usage.prompt_tokens * 0.0025 + response.usage.completion_tokens * 0.01) / 1000
             else:  # GPT-3.5-turbo or other
                 cost = total_tokens * 0.002 / 1000

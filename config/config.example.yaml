@@ -15,9 +15,9 @@ scheduler:
   
 # OpenAI API settings
 openai:
-  model: "o3"  # Use o3-mini for reasoning, or "gpt-4o" for non-reasoning
-  shortening_model: "gpt-4.1"  # Use gpt-4o for shortening tasks
-  max_tokens: 150
+  model: "o3"
+  shortening_model: "gpt-4.1"
+  max_tokens: 1000
   temperature: 0.8
   embedding_model: "text-embedding-3-small"
   
