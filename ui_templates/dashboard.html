@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Kink Bot - Control Panel</title>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-healthy { background-color: #10b981; }
+        .status-warning { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Zen Kink Bot - Control Panel</h1>
+            <p class="text-gray-600">Autonomous Twitter agent blending mindfulness and shadow work</p>
+        </div>
+
+        <!-- System Status -->
+        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">System Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        {% if health_status.status == 'healthy' %}
+                            <span class="status-indicator status-healthy"></span>
+                            <span class="text-green-600 font-medium">ACTIVE & RUNNING</span>
+                        {% else %}
+                            <span class="status-indicator status-error"></span>
+                            <span class="text-red-600 font-medium">UNHEALTHY</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-500">System Status</p>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="text-sm">
+                        {% if recent_posts %}
+                            <span class="font-medium">{{ recent_posts[0].timestamp.split('T')[0] }}</span>
+                            <span class="text-gray-500">({{ recent_posts[0].status }})</span>
+                        {% else %}
+                            <span class="text-gray-400">No posts yet</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-500">Last Post</p>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="text-sm">
+                        <span class="font-medium">${{ "%.2f"|format(daily_cost) }} / ${{ "%.2f"|format(cost_limit) }}</span>
+                        {% if daily_cost >= cost_limit * 0.8 %}
+                            <span class="text-orange-500 text-xs">⚠️</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-500">Daily Cost</p>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="text-sm">
+                        <span class="font-medium">{{ "%.1f"|format(success_rate * 100) }}%</span>
+                        {% if success_rate < 0.8 %}
+                            <span class="text-orange-500 text-xs">⚠️</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-500">Success Rate (24h)</p>
+                </div>
+            </div>
+            
+            <div class="mt-4 flex gap-2">
+                <button 
+                    hx-get="/api/logs" 
+                    hx-target="#logs-modal" 
+                    hx-trigger="click"
+                    onclick="document.getElementById('logs-modal').style.display='block'"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    View Activity Log
+                </button>
+                
+                <button 
+                    hx-post="/api/force-post"
+                    hx-trigger="click"
+                    hx-confirm="Generate and post a tweet now?"
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    Force Post Now
+                </button>
+                
+                <button 
+                    hx-post="/emergency-stop"
+                    hx-trigger="click"
+                    hx-swap="none"
+                    hx-confirm="Toggle emergency stop?"
+                    class="px-4 py-2 {% if emergency_stop %}bg-green-600 hover:bg-green-700{% else %}bg-red-600 hover:bg-red-700{% endif %} text-white rounded">
+                    {% if emergency_stop %}🟢 RESUME{% else %}🚨 EMERGENCY STOP{% endif %}
+                </button>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left Column -->
+            <div class="space-y-6">
+                <!-- Persona Configuration -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h2 class="text-xl font-semibold mb-4">Persona Configuration</h2>
+                    <form hx-post="/api/persona" hx-trigger="submit">
+                        <textarea 
+                            name="persona"
+                            rows="8"
+                            class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="Enter the bot's personality and voice...">{{ persona }}</textarea>
+                        
+                        <div class="mt-4 flex gap-2">
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                Save Persona
+                            </button>
+                            <button 
+                                type="button"
+                                hx-post="/api/test-generation"
+                                hx-include="[name='persona']"
+                                hx-target="#test-result"
+                                class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                                Generate Test Tweet
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div id="test-result" class="mt-4"></div>
+                </div>
+
+                <!-- Exemplar Tweets -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h2 class="text-xl font-semibold mb-4">Exemplar Tweets (Style Guide)</h2>
+                    
+                    <!-- Add New Exemplar -->
+                    <form hx-post="/api/exemplars" hx-trigger="submit" hx-target="#exemplars-list" hx-swap="beforeend">
+                        <div class="flex gap-2 mb-4">
+                            <input 
+                                type="text"
+                                name="tweet_text"
+                                placeholder="Add new exemplar tweet..."
+                                class="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                required>
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                                Add
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Exemplars List -->
+                    <div id="exemplars-list" class="space-y-2 max-h-64 overflow-y-auto">
+                        {% for exemplar in exemplars %}
+                        <div class="flex items-start justify-between p-3 bg-gray-50 rounded border">
+                            <div class="flex-1">
+                                <p class="text-sm">{{ exemplar.text }}</p>
+                            </div>
+                            <button 
+                                hx-delete="/api/exemplars/{{ exemplar.id }}"
+                                hx-target="closest div"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete this exemplar?"
+                                class="ml-2 text-red-500 hover:text-red-700">
+                                ×
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-6">
+                <!-- Knowledge Base Explorer -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h2 class="text-xl font-semibold mb-4">Knowledge Base Explorer</h2>
+                    
+                    <form hx-get="/api/search-chunks" hx-target="#search-results" hx-trigger="submit">
+                        <div class="flex gap-2 mb-4">
+                            <input 
+                                type="text"
+                                name="query"
+                                placeholder="Search knowledge chunks..."
+                                class="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                Search
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div id="search-results" class="space-y-2 max-h-64 overflow-y-auto">
+                        <p class="text-gray-500 text-sm">Enter a search term to explore the knowledge base</p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h2 class="text-xl font-semibold mb-4">Recent Activity</h2>
+                    
+                    <div class="space-y-3 max-h-64 overflow-y-auto">
+                        {% for post in recent_posts[:5] %}
+                        <div class="p-3 bg-gray-50 rounded border">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-gray-500">{{ post.timestamp.split('T')[0] }} {{ post.timestamp.split('T')[1].split('.')[0] }}</span>
+                                <span class="text-xs px-2 py-1 rounded 
+                                    {% if post.status == 'success' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ post.status }}
+                                </span>
+                            </div>
+                            <p class="text-sm">{{ post.tweet_text[:100] }}{% if post.tweet_text|length > 100 %}...{% endif %}</p>
+                            {% if post.error_message %}
+                            <p class="text-xs text-red-600 mt-1">{{ post.error_message }}</p>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <p class="text-gray-500 text-sm">No recent activity</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- System Health Monitoring -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h2 class="text-xl font-semibold mb-4">System Health & Monitoring</h2>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">OpenAI API</span>
+                            <span class="status-indicator status-healthy"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Twitter API</span>
+                            <span class="status-indicator status-healthy"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">ChromaDB</span>
+                            <span class="status-indicator status-healthy"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Error Rate (24h)</span>
+                            <span class="text-sm font-medium">{{ "%.1f"|format((1 - success_rate) * 100) }}%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 flex gap-2">
+                        <button 
+                            hx-get="/api/costs"
+                            hx-target="#metrics-modal"
+                            hx-trigger="click"
+                            onclick="document.getElementById('metrics-modal').style.display='block'"
+                            class="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700">
+                            View Metrics
+                        </button>
+                        <button 
+                            hx-get="/health/deep"
+                            hx-target="#health-modal"
+                            hx-trigger="click"
+                            onclick="document.getElementById('health-modal').style.display='block'"
+                            class="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700">
+                            Deep Health Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="logs-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-96 overflow-y-auto">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">Activity Logs</h3>
+                    <button onclick="document.getElementById('logs-modal').style.display='none'" class="float-right text-gray-500 hover:text-gray-700">×</button>
+                </div>
+                <div id="logs-content" class="p-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="metrics-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-2xl w-full">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">System Metrics</h3>
+                    <button onclick="document.getElementById('metrics-modal').style.display='none'" class="float-right text-gray-500 hover:text-gray-700">×</button>
+                </div>
+                <div id="metrics-content" class="p-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="health-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-2xl w-full">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">Health Check Results</h3>
+                    <button onclick="document.getElementById('health-modal').style.display='none'" class="float-right text-gray-500 hover:text-gray-700">×</button>
+                </div>
+                <div id="health-content" class="p-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh status every 30 seconds
+        setInterval(function() {
+            htmx.ajax('GET', '/api/status', {target: '#status-section'});
+        }, 30000);
+    </script>
+</body>
+</html>

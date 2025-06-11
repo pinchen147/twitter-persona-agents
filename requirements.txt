@@ -1,0 +1,46 @@
+# FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+jinja2==3.1.2
+python-multipart==0.0.6
+
+# Data processing and ML
+openai==1.3.5
+chromadb==0.4.18
+numpy==1.24.3
+pdfplumber==0.10.3
+sentence-transformers==2.2.2
+
+# Twitter API
+tweepy==4.14.0
+
+# Scheduling and background tasks
+apscheduler==3.10.4
+
+# Configuration and environment
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Database
+sqlite3  # built-in
+
+# HTTP requests
+httpx==0.25.2
+requests==2.31.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# Security and validation
+pydantic==2.5.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+black==23.11.0
+isort==5.12.0
+mypy==1.7.1
+
+# HTMX for UI
+# Note: HTMX is loaded via CDN in HTML templates

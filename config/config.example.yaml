@@ -1,0 +1,68 @@
+# Zen Kink Bot Configuration Example
+# Copy this to config.yaml and customize for your environment
+
+# Application settings
+app:
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+  
+# Posting schedule
+scheduler:
+  enabled: true
+  post_interval_hours: 8  # Post every 8 hours
+  timezone: "UTC"
+  
+# OpenAI API settings
+openai:
+  model: "gpt-4"  # or "gpt-3.5-turbo" for cost optimization
+  shortening_model: "gpt-3.5-turbo"
+  max_tokens: 150
+  temperature: 0.8
+  embedding_model: "text-embedding-3-small"
+  
+# Twitter API settings
+twitter:
+  post_enabled: true  # Set to false for testing
+  character_limit: 280
+  
+# Content filtering
+content_filter:
+  enabled: true
+  use_openai_moderation: true
+  profanity_filter: true
+  
+# Vector database settings
+vector_db:
+  provider: "chroma"
+  persist_directory: "./data/chroma"
+  collection_name: "zen_kink_knowledge"
+  
+# Text processing
+text_processing:
+  chunk_size: 1500  # words per chunk
+  chunk_overlap: 200  # word overlap between chunks
+  similarity_threshold: 0.7
+  
+# Cost management
+cost_limits:
+  daily_limit_usd: 10.00
+  emergency_stop_enabled: true
+  
+# Monitoring and logging
+monitoring:
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  structured_logging: true
+  backup_enabled: true
+  backup_interval_hours: 24
+  
+# Deduplication settings
+deduplication:
+  enabled: true
+  recent_posts_lookback: 50  # Check last N posts for duplicates
+  min_similarity_threshold: 0.8  # Minimum similarity to consider duplicate
+
+# Health check settings
+health_check:
+  deep_check_enabled: true
+  timeout_seconds: 30

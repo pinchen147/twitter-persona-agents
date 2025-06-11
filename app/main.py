@@ -1,0 +1,460 @@
+"""Main FastAPI application for the Zen Kink Bot."""
+
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from datetime import datetime
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+
+from app.deps import get_config
+from app.monitoring import CostTracker, ActivityLogger, HealthChecker
+from app.exceptions import ZenKinkBotException
+import structlog
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logger = structlog.get_logger(__name__)
+
+# Global instances
+cost_tracker = None
+activity_logger = None
+health_checker = None
+emergency_stop = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize and cleanup application resources."""
+    global cost_tracker, activity_logger, health_checker
+    
+    try:
+        # Initialize monitoring components
+        config = get_config()
+        daily_limit = config.get("cost_limits", {}).get("daily_limit_usd", 10.0)
+        
+        cost_tracker = CostTracker(daily_limit=daily_limit)
+        activity_logger = ActivityLogger()
+        health_checker = HealthChecker(cost_tracker, activity_logger)
+        
+        # Log startup
+        activity_logger.log_system_event("startup", "Application started successfully")
+        logger.info("Zen Kink Bot started successfully")
+        
+        yield
+        
+    except Exception as e:
+        logger.error("Failed to initialize application", error=str(e))
+        raise
+    finally:
+        # Cleanup
+        if activity_logger:
+            activity_logger.log_system_event("shutdown", "Application shutting down")
+        logger.info("Zen Kink Bot shutdown complete")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Zen Kink Bot",
+    description="Autonomous Twitter bot blending Eckhart Tolle and Carolyn Elliott philosophies",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+# Templates and static files
+templates = Jinja2Templates(directory="ui_templates")
+
+# Mount static files if directory exists
+static_dir = Path("ui_templates/static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+
+@app.exception_handler(ZenKinkBotException)
+async def bot_exception_handler(request: Request, exc: ZenKinkBotException):
+    """Handle custom bot exceptions."""
+    logger.error("Bot exception occurred", exception=str(exc), path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"error": f"Bot error: {str(exc)}"}
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions."""
+    logger.error("Unexpected exception occurred", exception=str(exc), path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error"}
+    )
+
+
+@app.get("/")
+async def dashboard(request: Request):
+    """Main dashboard page."""
+    try:
+        # Get system status
+        health_status = health_checker.check_health(deep=False)
+        recent_posts = activity_logger.get_recent_posts(limit=5)
+        daily_cost = cost_tracker.get_daily_cost()
+        success_rate = activity_logger.get_success_rate(hours=24)
+        
+        # Load persona and exemplars
+        from app.deps import get_persona, get_exemplars
+        persona = get_persona()
+        exemplars = get_exemplars()
+        
+        context = {
+            "request": request,
+            "health_status": health_status,
+            "recent_posts": recent_posts,
+            "daily_cost": daily_cost,
+            "cost_limit": cost_tracker.daily_limit,
+            "success_rate": success_rate,
+            "persona": persona,
+            "exemplars": exemplars,
+            "emergency_stop": emergency_stop
+        }
+        
+        return templates.TemplateResponse("dashboard.html", context)
+    
+    except Exception as e:
+        logger.error("Dashboard error", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)}")
+
+
+@app.get("/health")
+async def health_check():
+    """Basic health check endpoint."""
+    try:
+        health_status = health_checker.check_health(deep=False)
+        status_code = 200 if health_status["status"] == "healthy" else 503
+        return JSONResponse(content=health_status, status_code=status_code)
+    except Exception as e:
+        logger.error("Health check failed", error=str(e))
+        return JSONResponse(
+            content={"status": "unhealthy", "error": str(e)},
+            status_code=503
+        )
+
+
+@app.get("/health/deep")
+async def deep_health_check():
+    """Deep health check with external dependencies."""
+    try:
+        health_status = health_checker.check_health(deep=True)
+        status_code = 200 if health_status["status"] == "healthy" else 503
+        return JSONResponse(content=health_status, status_code=status_code)
+    except Exception as e:
+        logger.error("Deep health check failed", error=str(e))
+        return JSONResponse(
+            content={"status": "unhealthy", "error": str(e)},
+            status_code=503
+        )
+
+
+@app.post("/emergency-stop")
+async def emergency_stop_toggle():
+    """Toggle emergency stop state."""
+    global emergency_stop
+    emergency_stop = not emergency_stop
+    
+    status = "activated" if emergency_stop else "deactivated"
+    activity_logger.log_system_event(
+        "emergency_stop", 
+        f"Emergency stop {status}",
+        level="WARNING" if emergency_stop else "INFO"
+    )
+    
+    logger.warning("Emergency stop toggled", emergency_stop=emergency_stop)
+    
+    return {"emergency_stop": emergency_stop, "message": f"Emergency stop {status}"}
+
+
+@app.get("/api/status")
+async def get_status():
+    """Get current system status as JSON."""
+    try:
+        health_status = health_checker.check_health(deep=False)
+        recent_posts = activity_logger.get_recent_posts(limit=1)
+        
+        last_post = recent_posts[0] if recent_posts else None
+        
+        return {
+            "status": "active" if not emergency_stop else "stopped",
+            "health": health_status["status"],
+            "last_post": last_post,
+            "emergency_stop": emergency_stop,
+            "daily_cost": cost_tracker.get_daily_cost(),
+            "cost_limit": cost_tracker.daily_limit,
+            "success_rate": activity_logger.get_success_rate(hours=24)
+        }
+    except Exception as e:
+        logger.error("Status API error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/force-post")
+async def force_post():
+    """Force generate and post a tweet immediately."""
+    if emergency_stop:
+        raise HTTPException(status_code=423, detail="Emergency stop is active")
+    
+    try:
+        # Import here to avoid circular imports
+        from app.generation import generate_and_post_tweet
+        
+        result = await generate_and_post_tweet()
+        return {"success": True, "result": result}
+    
+    except Exception as e:
+        logger.error("Force post failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Force post failed: {str(e)}")
+
+
+@app.get("/api/logs")
+async def get_logs(limit: int = 100):
+    """Get recent activity logs."""
+    try:
+        posts = activity_logger.get_recent_posts(limit=limit)
+        return {"posts": posts}
+    except Exception as e:
+        logger.error("Logs API error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/costs")
+async def get_costs():
+    """Get cost breakdown and statistics."""
+    try:
+        daily_cost = cost_tracker.get_daily_cost()
+        cost_breakdown = cost_tracker.get_cost_breakdown(days=7)
+        
+        return {
+            "daily_cost": daily_cost,
+            "daily_limit": cost_tracker.daily_limit,
+            "within_limit": cost_tracker.check_daily_limit(),
+            "breakdown_7_days": cost_breakdown
+        }
+    except Exception as e:
+        logger.error("Costs API error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/persona")
+async def update_persona(request: Request):
+    """Update the bot's persona."""
+    try:
+        form = await request.form()
+        new_persona = form.get("persona", "").strip()
+        
+        if not new_persona:
+            raise HTTPException(status_code=400, detail="Persona cannot be empty")
+        
+        # Validate content
+        from app.security import validate_user_input
+        if not validate_user_input(new_persona, "persona"):
+            raise HTTPException(status_code=400, detail="Persona contains inappropriate content")
+        
+        # Save to file
+        persona_path = Path("data/persona.txt")
+        persona_path.write_text(new_persona)
+        
+        logger.info("Persona updated", length=len(new_persona))
+        activity_logger.log_system_event("persona_updated", "User updated bot persona")
+        
+        return {"success": True, "message": "Persona updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update persona", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update persona: {str(e)}")
+
+
+@app.post("/api/exemplars")
+async def add_exemplar(request: Request):
+    """Add a new exemplar tweet."""
+    try:
+        form = await request.form()
+        tweet_text = form.get("tweet_text", "").strip()
+        
+        if not tweet_text:
+            raise HTTPException(status_code=400, detail="Tweet text cannot be empty")
+        
+        # Validate content
+        from app.security import validate_user_input
+        if not validate_user_input(tweet_text, "exemplar"):
+            raise HTTPException(status_code=400, detail="Tweet contains inappropriate content")
+        
+        # Load existing exemplars
+        import json
+        exemplars_path = Path("data/exemplars.json")
+        
+        if exemplars_path.exists():
+            with open(exemplars_path) as f:
+                exemplars = json.load(f)
+        else:
+            exemplars = []
+        
+        # Add new exemplar
+        new_id = max([e.get("id", 0) for e in exemplars], default=0) + 1
+        new_exemplar = {
+            "id": new_id,
+            "text": tweet_text,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        exemplars.append(new_exemplar)
+        
+        # Save back to file
+        with open(exemplars_path, 'w') as f:
+            json.dump(exemplars, f, indent=2)
+        
+        logger.info("Exemplar added", id=new_id, text=tweet_text[:50])
+        activity_logger.log_system_event("exemplar_added", f"Added exemplar: {tweet_text[:50]}...")
+        
+        return HTMLResponse(f"""
+        <div class="flex items-start justify-between p-3 bg-gray-50 rounded border">
+            <div class="flex-1">
+                <p class="text-sm">{tweet_text}</p>
+            </div>
+            <button 
+                hx-delete="/api/exemplars/{new_id}"
+                hx-target="closest div"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this exemplar?"
+                class="ml-2 text-red-500 hover:text-red-700">
+                ×
+            </button>
+        </div>
+        """)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to add exemplar", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to add exemplar: {str(e)}")
+
+
+@app.delete("/api/exemplars/{exemplar_id}")
+async def delete_exemplar(exemplar_id: int):
+    """Delete an exemplar tweet."""
+    try:
+        import json
+        exemplars_path = Path("data/exemplars.json")
+        
+        if not exemplars_path.exists():
+            raise HTTPException(status_code=404, detail="No exemplars found")
+        
+        with open(exemplars_path) as f:
+            exemplars = json.load(f)
+        
+        # Remove exemplar with matching ID
+        exemplars = [e for e in exemplars if e.get("id") != exemplar_id]
+        
+        # Save back to file
+        with open(exemplars_path, 'w') as f:
+            json.dump(exemplars, f, indent=2)
+        
+        logger.info("Exemplar deleted", id=exemplar_id)
+        activity_logger.log_system_event("exemplar_deleted", f"Deleted exemplar ID: {exemplar_id}")
+        
+        return {"success": True}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete exemplar", exemplar_id=exemplar_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete exemplar: {str(e)}")
+
+
+@app.get("/api/search-chunks")
+async def search_chunks(query: str, limit: int = 10):
+    """Search knowledge base chunks."""
+    try:
+        from app.vector_search import search_knowledge_base
+        
+        if not query.strip():
+            return HTMLResponse("<p class='text-gray-500 text-sm'>Enter a search term to explore the knowledge base</p>")
+        
+        results = search_knowledge_base(query, limit=limit)
+        
+        if not results:
+            return HTMLResponse("<p class='text-gray-500 text-sm'>No results found</p>")
+        
+        # Build HTML response
+        html_parts = []
+        for result in results:
+            html_parts.append(f"""
+            <div class="p-3 bg-gray-50 rounded border">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-500">{result['source_title']} - Chunk {result['chunk_index']}</span>
+                    <span class="text-xs text-blue-600">Similarity: {result['similarity']}</span>
+                </div>
+                <p class="text-sm">{result['text']}</p>
+                <div class="text-xs text-gray-400 mt-1">{result['word_count']} words</div>
+            </div>
+            """)
+        
+        return HTMLResponse('\n'.join(html_parts))
+        
+    except Exception as e:
+        logger.error("Chunk search failed", query=query, error=str(e))
+        return HTMLResponse(f"<p class='text-red-500 text-sm'>Search failed: {str(e)}</p>")
+
+
+@app.post("/api/test-generation")
+async def test_generation(request: Request):
+    """Generate a test tweet without posting."""
+    try:
+        form = await request.form()
+        custom_persona = form.get("persona")
+        
+        from app.generation import generate_test_tweet
+        result = await generate_test_tweet(custom_persona=custom_persona if custom_persona else None)
+        
+        if result["status"] == "success":
+            html = f"""
+            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                <h4 class="font-medium text-green-800 mb-2">Test Tweet Generated:</h4>
+                <p class="text-sm bg-white p-3 rounded border">{result['tweet_text']}</p>
+                <div class="mt-2 text-xs text-green-600">
+                    Length: {result['character_count']}/280 • 
+                    Source: {result['seed_source']} • 
+                    Generation time: {result['generation_time_ms']}ms
+                    {' • Shortened' if result.get('was_shortened') else ''}
+                </div>
+            </div>
+            """
+        else:
+            html = f"""
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h4 class="font-medium text-red-800 mb-2">Generation Failed:</h4>
+                <p class="text-sm text-red-700">{result.get('error', 'Unknown error')}</p>
+            </div>
+            """
+        
+        return HTMLResponse(html)
+        
+    except Exception as e:
+        logger.error("Test generation failed", error=str(e))
+        html = f"""
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+            <h4 class="font-medium text-red-800 mb-2">Test Failed:</h4>
+            <p class="text-sm text-red-700">{str(e)}</p>
+        </div>
+        """
+        return HTMLResponse(html)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
