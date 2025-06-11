@@ -25,8 +25,8 @@ class TweetGenerator:
         
         # Load configuration
         config = get_config()
-        self.model = config.get("openai", {}).get("model", "gpt-4")
-        self.shortening_model = config.get("openai", {}).get("shortening_model", "gpt-3.5-turbo")
+        self.model = config.get("openai", {}).get("model", "o3")  # Default to o3 reasoning
+        self.shortening_model = config.get("openai", {}).get("shortening_model", "gpt-4.1")
         self.max_tokens = config.get("openai", {}).get("max_tokens", 150)
         self.temperature = config.get("openai", {}).get("temperature", 0.8)
         self.character_limit = config.get("twitter", {}).get("character_limit", 280)
@@ -75,37 +75,77 @@ class TweetGenerator:
             logger.debug("Calling OpenAI for tweet generation", model=self.model)
             
             start_time = time.time()
-            response = self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a tweet generator. Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
-            )
-            api_time = time.time() - start_time
             
-            # Extract tweet
-            tweet_text = response.choices[0].message.content.strip()
+            # Check if using o3/o4 reasoning model - use Responses API
+            if self.model.startswith(("o3", "o4")):
+                # Use Responses API for reasoning models
+                response = self.openai_client.responses.create(
+                    model=self.model,
+                    reasoning={"effort": "medium"},  # Medium reasoning effort for creative but focused tasks
+                    input=[
+                        {
+                            "role": "system", 
+                            "content": "You are a tweet generator that synthesizes philosophical wisdom into engaging social media content. Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_output_tokens=300  # Reserve space for reasoning + output
+                )
+                # Extract tweet from response
+                tweet_text = response.output_text.strip()
+                
+                # Get usage stats from reasoning model response
+                usage = response.usage
+                prompt_tokens = usage.input_tokens
+                completion_tokens = usage.output_tokens
+                total_tokens = usage.total_tokens
+                reasoning_tokens = usage.output_tokens_details.get("reasoning_tokens", 0) if hasattr(usage, 'output_tokens_details') else 0
+                
+            else:
+                # Use Chat Completions API for non-reasoning models (gpt-4o, etc.)
+                response = self.openai_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "system", 
+                            "content": "You are a tweet generator that synthesizes philosophical wisdom into engaging social media content. Generate exactly one tweet. Do not include quotes, prefixes, or explanations. Just return the raw tweet text."
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                # Extract tweet from chat completion
+                tweet_text = response.choices[0].message.content.strip()
+                
+                # Get usage stats from chat completion
+                usage = response.usage
+                prompt_tokens = usage.prompt_tokens
+                completion_tokens = usage.completion_tokens
+                total_tokens = usage.total_tokens
+                reasoning_tokens = 0
+            api_time = time.time() - start_time
             
             # Remove quotes if they were added
             if (tweet_text.startswith('"') and tweet_text.endswith('"')) or \
                (tweet_text.startswith("'") and tweet_text.endswith("'")):
                 tweet_text = tweet_text[1:-1]
             
-            # Calculate and record cost
-            prompt_tokens = response.usage.prompt_tokens
-            completion_tokens = response.usage.completion_tokens
-            total_tokens = response.usage.total_tokens
-            
-            # Cost calculation for GPT-4 (adjust if using different model)
-            if "gpt-4" in self.model.lower():
+            # Cost calculation based on model type
+            if self.model.startswith(("o3", "o4")):
+                # o3/o4 reasoning models - note: all output tokens (including reasoning) are billed
+                # Approximate pricing - update with actual pricing when available
+                if "mini" in self.model.lower():
+                    cost = (prompt_tokens * 0.0015 + completion_tokens * 0.006) / 1000
+                else:
+                    cost = (prompt_tokens * 0.06 + completion_tokens * 0.24) / 1000  # Full o3/o4 pricing
+            elif "gpt-4o" in self.model.lower():
+                # GPT-4o pricing
+                cost = (prompt_tokens * 0.0025 + completion_tokens * 0.01) / 1000
+            elif "gpt-4" in self.model.lower():
+                # GPT-4 pricing
                 cost = (prompt_tokens * 0.03 + completion_tokens * 0.06) / 1000
-            else:  # GPT-3.5-turbo
+            else:  # GPT-3.5-turbo or other
                 cost = (prompt_tokens * 0.0015 + completion_tokens * 0.002) / 1000
             
             self.cost_tracker.record_cost(
@@ -117,6 +157,7 @@ class TweetGenerator:
                     "model": self.model,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
+                    "reasoning_tokens": reasoning_tokens,
                     "api_time_ms": int(api_time * 1000)
                 }
             )
@@ -124,6 +165,7 @@ class TweetGenerator:
             logger.info("Tweet generated successfully", 
                        model=self.model,
                        tokens_used=total_tokens,
+                       reasoning_tokens=reasoning_tokens,
                        cost_usd=cost,
                        tweet_length=len(tweet_text),
                        api_time_ms=int(api_time * 1000))
@@ -175,9 +217,12 @@ class TweetGenerator:
                (shortened_text.startswith("'") and shortened_text.endswith("'")):
                 shortened_text = shortened_text[1:-1]
             
-            # Record cost
+            # Record cost based on shortening model
             total_tokens = response.usage.total_tokens
-            cost = total_tokens * 0.002 / 1000  # GPT-3.5-turbo cost
+            if "gpt-4o" in self.shortening_model.lower():
+                cost = (response.usage.prompt_tokens * 0.0025 + response.usage.completion_tokens * 0.01) / 1000
+            else:  # GPT-3.5-turbo or other
+                cost = total_tokens * 0.002 / 1000
             
             self.cost_tracker.record_cost(
                 service="openai",

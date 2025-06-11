@@ -76,7 +76,7 @@ docker-compose up --build
 ```
 
 ### 6. Access Control Panel
-Open http://localhost:8000 in your browser to access the control panel.
+Open http://localhost:8582 in your browser to access the control panel.
 
 ## 🎛️ Control Panel Features
 
@@ -229,7 +229,7 @@ docker-compose -f docker/docker-compose.yml up
 ```bash
 # Through the web UI: Use \"Generate Test Tweet\" button
 # Or via API:
-curl -X POST http://localhost:8000/api/test-generation
+curl -X POST http://localhost:8582/api/test-generation
 ```
 
 ## 📦 Deployment
