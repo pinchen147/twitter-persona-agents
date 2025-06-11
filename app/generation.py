@@ -99,7 +99,7 @@ class TweetGenerator:
                 prompt_tokens = usage.input_tokens
                 completion_tokens = usage.output_tokens
                 total_tokens = usage.total_tokens
-                reasoning_tokens = usage.output_tokens_details.get("reasoning_tokens", 0) if hasattr(usage, 'output_tokens_details') else 0
+                reasoning_tokens = getattr(usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(usage, 'output_tokens_details') else 0
                 
             else:
                 # Use Chat Completions API for non-reasoning models (gpt-4o, etc.)

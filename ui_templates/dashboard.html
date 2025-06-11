@@ -129,12 +129,16 @@
                                 hx-post="/api/test-generation"
                                 hx-include="[name='persona']"
                                 hx-target="#test-result"
+                                hx-indicator="#test-loading"
                                 class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
                                 Generate Test Tweet
                             </button>
                         </div>
                     </form>
                     
+                    <div id="test-loading" class="htmx-indicator mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
+                        🤖 Generating tweet... This may take up to 30 seconds.
+                    </div>
                     <div id="test-result" class="mt-4"></div>
                 </div>
 
@@ -317,10 +321,16 @@
     </div>
 
     <script>
-        // Auto-refresh status every 30 seconds
-        setInterval(function() {
-            htmx.ajax('GET', '/api/status', {target: '#status-section'});
-        }, 30000);
+        // Disable auto-refresh for now to prevent page replacement
+        // setInterval(function() {
+        //     if (!document.hidden) {
+        //         try {
+        //             htmx.ajax('GET', '/api/status', {target: '#status-section'});
+        //         } catch (e) {
+        //             console.warn('Status refresh failed:', e);
+        //         }
+        //     }
+        // }, 30000);
     </script>
 </body>
 </html>

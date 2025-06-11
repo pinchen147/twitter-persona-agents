@@ -399,7 +399,7 @@ async def search_chunks(query: str, limit: int = 10):
                     <span class="text-xs text-gray-500">{result['source_title']} - Chunk {result['chunk_index']}</span>
                     <span class="text-xs text-blue-600">Similarity: {result['similarity']}</span>
                 </div>
-                <p class="text-sm">{result['text']}</p>
+                <p class="text-sm whitespace-pre-wrap">{result['full_text']}</p>
                 <div class="text-xs text-gray-400 mt-1">{result['word_count']} words</div>
             </div>
             """)
@@ -421,7 +421,7 @@ async def test_generation(request: Request):
         from app.generation import generate_test_tweet
         result = await generate_test_tweet(custom_persona=custom_persona if custom_persona else None)
         
-        if result["status"] == "success":
+        if result["status"] == "success" and result.get('tweet_text'):
             html = f"""
             <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
                 <h4 class="font-medium text-green-800 mb-2">Test Tweet Generated:</h4>
@@ -431,6 +431,17 @@ async def test_generation(request: Request):
                     Source: {result['seed_source']} • 
                     Generation time: {result['generation_time_ms']}ms
                     {' • Shortened' if result.get('was_shortened') else ''}
+                </div>
+            </div>
+            """
+        elif result["status"] == "success" and not result.get('tweet_text'):
+            html = f"""
+            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                <h4 class="font-medium text-yellow-800 mb-2">Empty Tweet Generated:</h4>
+                <p class="text-sm text-yellow-700">Tweet generation completed but returned empty text. Check model configuration and prompts.</p>
+                <div class="mt-2 text-xs text-yellow-600">
+                    Source: {result.get('seed_source', 'Unknown')} • 
+                    Generation time: {result.get('generation_time_ms', 0)}ms
                 </div>
             </div>
             """
