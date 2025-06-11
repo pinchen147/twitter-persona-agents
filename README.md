@@ -8,6 +8,17 @@ An autonomous Twitter bot that generates and posts insightful content by synthes
 
 The system is built on a core philosophy of **simplicity and ruthless pragmatism**. Its primary purpose is not just to post, but to serve as a platform for easily tuning and evolving a unique digital persona through a minimal, powerful control panel.
 
+## ⚡ Ready to Run
+
+**The environment is already set up!** Just follow these steps:
+
+1. **Activate virtual environment**: `source venv/bin/activate`
+2. **Add API keys**: Copy `config/secrets.env.example` to `.env` and add your keys
+3. **Add PDF books**: Place them in `data/source_material/`
+4. **Build knowledge base**: `python -m ingest.split_embed`
+5. **Start application**: `uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload`
+6. **Open control panel**: http://localhost:8582
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -21,12 +32,12 @@ The system is built on a core philosophy of **simplicity and ruthless pragmatism
 git clone <your-repo-url>
 cd zenkink-twitter-agent
 
-# Create virtual environment
-python -m venv venv
+# The virtual environment 'venv' is already created for you!
+# Just activate it:
 source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Dependencies are already installed, but you can update them if needed:
+# pip install -r requirements.txt
 ```
 
 ### 2. Configuration
@@ -54,8 +65,11 @@ python -m ingest.split_embed
 
 ### 5. Run the Application
 ```bash
+# Make sure virtual environment is activated
+source venv/bin/activate
+
 # Start the web application
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload
 
 # Or use Docker
 docker-compose up --build
