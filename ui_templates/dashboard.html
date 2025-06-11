@@ -210,7 +210,13 @@
                         {% for post in recent_posts[:5] %}
                         <div class="p-3 bg-gray-50 rounded border">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="text-xs text-gray-500">{{ post.timestamp.split('T')[0] }} {{ post.timestamp.split('T')[1].split('.')[0] }}</span>
+                                <span class="text-xs text-gray-500">
+                                    {% set timestamp_parts = post.timestamp.split('T') %}
+                                    {{ timestamp_parts[0] }}
+                                    {% if timestamp_parts|length > 1 %}
+                                        {{ timestamp_parts[1].split('.')[0] }}
+                                    {% endif %}
+                                </span>
                                 <span class="text-xs px-2 py-1 rounded 
                                     {% if post.status == 'success' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
                                     {{ post.status }}
