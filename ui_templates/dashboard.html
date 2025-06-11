@@ -79,7 +79,8 @@
             
             <div class="mt-4 flex gap-2">
                 <button 
-                    hx-get="/api/logs" 
+                    hx-get="/api/logs"
+                    hx-trigger="click" 
                     hx-target="#logs-modal" 
                     hx-trigger="click"
                     onclick="document.getElementById('logs-modal').style.display='block'"
@@ -263,6 +264,7 @@
                     <div class="mt-4 flex gap-2">
                         <button 
                             hx-get="/api/costs"
+                            hx-trigger="click"
                             hx-target="#metrics-modal"
                             hx-trigger="click"
                             onclick="document.getElementById('metrics-modal').style.display='block'"
@@ -271,6 +273,7 @@
                         </button>
                         <button 
                             hx-get="/health/deep"
+                            hx-trigger="click"
                             hx-target="#health-modal"
                             hx-trigger="click"
                             onclick="document.getElementById('health-modal').style.display='block'"
@@ -321,16 +324,13 @@
     </div>
 
     <script>
-        // Disable auto-refresh for now to prevent page replacement
-        // setInterval(function() {
-        //     if (!document.hidden) {
-        //         try {
-        //             htmx.ajax('GET', '/api/status', {target: '#status-section'});
-        //         } catch (e) {
-        //             console.warn('Status refresh failed:', e);
-        //         }
-        //     }
-        // }, 30000);
+        // Configure HTMX to be more explicit about triggers
+        document.addEventListener('DOMContentLoaded', function() {
+            // Disable any default polling behavior
+            htmx.config.defaultSwapStyle = 'innerHTML';
+            htmx.config.defaultSwapDelay = 0;
+            htmx.config.defaultSettleDelay = 20;
+        });
     </script>
 </body>
 </html>
