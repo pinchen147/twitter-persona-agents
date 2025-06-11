@@ -9,8 +9,12 @@ from openai import OpenAI
 import tweepy
 import chromadb
 from chromadb.config import Settings
+from dotenv import load_dotenv
 
 from app.exceptions import ConfigurationError
+
+# Load environment variables from config/.env
+load_dotenv("config/.env")
 
 
 def get_config() -> dict:

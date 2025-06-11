@@ -16,8 +16,8 @@ from app.monitoring import CostTracker, ActivityLogger, HealthChecker
 from app.exceptions import ZenKinkBotException
 import structlog
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from config/.env
+load_dotenv("config/.env")
 
 # Configure logging
 logger = structlog.get_logger(__name__)
@@ -205,18 +205,53 @@ async def get_status():
 async def force_post():
     """Force generate and post a tweet immediately."""
     if emergency_stop:
-        raise HTTPException(status_code=423, detail="Emergency stop is active")
+        return HTMLResponse("""
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+            <h4 class="font-medium text-red-800 mb-2">Cannot Post:</h4>
+            <p class="text-sm text-red-700">Emergency stop is active</p>
+        </div>
+        """)
     
     try:
         # Import here to avoid circular imports
         from app.generation import generate_and_post_tweet
         
+        logger.info("Starting forced tweet generation and posting")
         result = await generate_and_post_tweet()
-        return {"success": True, "result": result}
+        
+        if result.get("status") == "success":
+            html = f"""
+            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                <h4 class="font-medium text-green-800 mb-2">Tweet Posted Successfully!</h4>
+                <p class="text-sm bg-white p-3 rounded border">{result.get('tweet_text', '')}</p>
+                <div class="mt-2 text-xs text-green-600">
+                    Length: {result.get('character_count', 0)}/280 • 
+                    Source: {result.get('seed_source', 'Unknown')} • 
+                    Generation time: {result.get('generation_time_ms', 0)}ms
+                    {' • Shortened' if result.get('was_shortened') else ''}
+                    {f' • Twitter ID: {result.get("twitter_id")}' if result.get('twitter_id') else ''}
+                </div>
+            </div>
+            """
+        else:
+            html = f"""
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h4 class="font-medium text-red-800 mb-2">Post Failed:</h4>
+                <p class="text-sm text-red-700">{result.get('error', 'Unknown error')}</p>
+            </div>
+            """
+        
+        return HTMLResponse(html)
     
     except Exception as e:
         logger.error("Force post failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Force post failed: {str(e)}")
+        html = f"""
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+            <h4 class="font-medium text-red-800 mb-2">Force Post Failed:</h4>
+            <p class="text-sm text-red-700">{str(e)}</p>
+        </div>
+        """
+        return HTMLResponse(html)
 
 
 @app.get("/api/logs")

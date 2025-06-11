@@ -1,7 +1,7 @@
 """Twitter API client for the Zen Kink Bot."""
 
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import structlog
 import tweepy
 

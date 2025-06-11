@@ -92,6 +92,8 @@
                     hx-post="/api/force-post"
                     hx-trigger="click"
                     hx-confirm="Generate and post a tweet now?"
+                    hx-indicator="#force-post-loading"
+                    hx-target="#force-post-result"
                     class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                     Force Post Now
                 </button>
@@ -105,6 +107,11 @@
                     {% if emergency_stop %}🟢 RESUME{% else %}🚨 EMERGENCY STOP{% endif %}
                 </button>
             </div>
+            
+            <div id="force-post-loading" class="htmx-indicator mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
+                🤖 Generating and posting tweet... This may take up to 60 seconds.
+            </div>
+            <div id="force-post-result" class="mt-4"></div>
         </div>
 
         <!-- Two Column Layout -->

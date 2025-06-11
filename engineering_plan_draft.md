@@ -300,14 +300,7 @@ Access the Control Panel at `http://localhost:8000`.
 ## Cost Management & Optimization
 
 ### Cost Monitoring
-*   **Daily Budget Alerts:** Google Cloud Billing alerts at $3, $5, $10 daily spend.
-*   **API Cost Tracking:** Log and aggregate OpenAI API costs per request.
 *   **Usage Analytics:** Track tweets generated, API calls made, success rates.
-
-### Cost Optimization
-*   **Embedding Caching:** Cache embeddings locally, avoid re-generation.
-*   **Model Selection:** Use gpt-3.5-turbo for shortening, GPT-4 only for main generation.
-*   **Batch Processing:** Process multiple PDFs in single ingest run to optimize embedding calls.
 
 ### Circuit Breakers
 *   **Daily Spend Limit:** Hard stop at $10/day spend across all APIs.
