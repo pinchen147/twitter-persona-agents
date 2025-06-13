@@ -43,8 +43,13 @@ async def lifespan(app: FastAPI):
         activity_logger = ActivityLogger()
         health_checker = HealthChecker(cost_tracker, activity_logger)
         
+        # Start the tweet scheduler for automatic posting
+        from app.scheduler import start_scheduler
+        start_scheduler()
+        logger.info("Tweet scheduler started - automatic posting enabled")
+        
         # Log startup
-        activity_logger.log_system_event("startup", "Application started successfully")
+        activity_logger.log_system_event("startup", "Application started successfully with automatic posting")
         logger.info("Zen Kink Bot started successfully")
         
         yield
@@ -53,7 +58,15 @@ async def lifespan(app: FastAPI):
         logger.error("Failed to initialize application", error=str(e))
         raise
     finally:
-        # Cleanup
+        # Cleanup scheduler
+        try:
+            from app.scheduler import stop_scheduler
+            stop_scheduler()
+            logger.info("Tweet scheduler stopped")
+        except Exception as e:
+            logger.error("Error stopping scheduler during cleanup", error=str(e))
+        
+        # Cleanup monitoring
         if activity_logger:
             activity_logger.log_system_event("shutdown", "Application shutting down")
         logger.info("Zen Kink Bot shutdown complete")
@@ -111,6 +124,10 @@ async def dashboard(request: Request):
         persona = get_persona()
         exemplars = get_exemplars()
         
+        # Get scheduler status
+        from app.scheduler import get_scheduler_status
+        scheduler_status = get_scheduler_status()
+        
         context = {
             "request": request,
             "health_status": health_status,
@@ -120,7 +137,8 @@ async def dashboard(request: Request):
             "success_rate": success_rate,
             "persona": persona,
             "exemplars": exemplars,
-            "emergency_stop": emergency_stop
+            "emergency_stop": emergency_stop,
+            "scheduler": scheduler_status
         }
         
         return templates.TemplateResponse("dashboard.html", context)
@@ -185,6 +203,10 @@ async def get_status():
         health_status = health_checker.check_health(deep=False)
         recent_posts = activity_logger.get_recent_posts(limit=1)
         
+        # Get scheduler status
+        from app.scheduler import get_scheduler_status
+        scheduler_status = get_scheduler_status()
+        
         last_post = recent_posts[0] if recent_posts else None
         
         return {
@@ -194,7 +216,8 @@ async def get_status():
             "emergency_stop": emergency_stop,
             "daily_cost": cost_tracker.get_daily_cost(),
             "cost_limit": cost_tracker.daily_limit,
-            "success_rate": activity_logger.get_success_rate(hours=24)
+            "success_rate": activity_logger.get_success_rate(hours=24),
+            "scheduler": scheduler_status
         }
     except Exception as e:
         logger.error("Status API error", error=str(e))
