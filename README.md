@@ -162,34 +162,6 @@ graph TD
 - **Health Checks**: Automated system health validation
 - **Performance Metrics**: Success rates, response times, error analysis
 
-## 📋 Configuration
-
-### Main Config (`config/config.yaml`)
-```yaml
-app:
-  debug: false
-  host: \"0.0.0.0\"
-  port: 8000
-
-scheduler:
-  enabled: true
-  post_interval_hours: 8
-  timezone: \"UTC\"
-
-openai:
-  model: \"gpt-4\"
-  shortening_model: \"gpt-3.5-turbo\"
-  temperature: 0.8
-  embedding_model: \"text-embedding-3-small\"
-
-cost_limits:
-  daily_limit_usd: 10.00
-  emergency_stop_enabled: true
-
-content_filter:
-  enabled: true
-  use_openai_moderation: true
-  profanity_filter: true
 ```
 
 ### Secrets (`.env`)
@@ -203,18 +175,6 @@ TWITTER_ACCESS_TOKEN_SECRET=your-access-token-secret
 ```
 
 ## 🧪 Testing & Development
-
-### Run Tests
-```bash
-# Unit tests
-pytest tests/unit/ -v
-
-# Integration tests (requires API keys)
-pytest tests/integration/ -v
-
-# All tests
-pytest -v
-```
 
 ### Development Mode
 ```bash
@@ -380,5 +340,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 4. Open an issue on GitHub with logs and config (redacted)
 
 ---
+
+
+#### ***Relevant Context (The "Why" Behind the decisions)**
+
+*   **Philosophical Source Material:** The knowledge base will be built from the works of **Eckhart Tolle** (*The Power of Now*, etc.) and **Carolyn Elliott** (*Existential Kink*). The desired voice is a blend of their core concepts: presence, ego-dissolution, and shadow work.
+*   **Reference Architecture:** The existing project `https://github.com/llj0824/longevity_agent` is a good model for the desired level of simplicity, code structure, and maintainability.
+*   **Core Generation Logic Flow:** We have decided on the following simple, fully-automated flow:
+    1.  **Random Seed:** The process begins by selecting a **random text chunk** from the vector database.
+    2.  **Context Retrieval:** Using the seed chunk's embedding, perform a vector similarity search to find other thematically related chunks.
+    3.  **Style Retrieval:** Select a few exemplar tweets from the flat file to guide the style.
+    4.  **Dynamic Prompt Generation:** Construct a prompt for an LLM that includes the persona, the retrieved context chunks, and the style exemplars.
+    5.  **Post:** Send the generated tweet to Twitter.
+*   **Key Design Decisions Already Made:**
+    *   **Chunking Strategy:** We prefer **large chunks** to preserve as much context as possible.
+    *   **Voice Blending:** For V1, all source texts will be mixed into a **single, unified knowledge base**. We will not tag chunks by author.
+    *   **Quality Control:** The system will be **100% automated**. There will be no human review step before a tweet is posted. Quality is controlled by refining the persona and exemplars over time via the UI.
+
 
 **Ready to blend ancient wisdom with cutting-edge AI? Let's build something transformative.** 🚀✨

@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   zenkink-bot:
+    container_name: zenkink-twitter-bot
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
