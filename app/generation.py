@@ -276,7 +276,8 @@ class TweetGenerator:
                 seed_chunk_hash="",
                 status="generation_failed",
                 error_message=str(e),
-                generation_time_ms=generation_time
+                generation_time_ms=generation_time,
+                account_id=self.account_id
             )
             
             raise GenerationError(f"Tweet generation failed: {str(e)}")
@@ -309,6 +310,7 @@ async def generate_and_post_tweet(account_id: str = None) -> Dict[str, any]:
             status="success",
             twitter_id=post_result.get("twitter_id"),
             generation_time_ms=generation_result["generation_time_ms"],
+            account_id=account_id,
             metadata={
                 "seed_source": generation_result["seed_source"],
                 "was_shortened": generation_result["was_shortened"],

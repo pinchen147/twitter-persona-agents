@@ -10,8 +10,13 @@ app:
 # Posting schedule
 scheduler:
   enabled: true
-  post_interval_hours: 8  # Post every 8 hours
+  post_interval_hours: 6  # Post every 6 hours (4 times per day)
   timezone: "UTC"
+  
+  # Catch-up posting for missed runs
+  catch_up_enabled: true
+  max_catch_up_posts: 3  # Maximum catch-up posts per account on startup
+  catch_up_grace_period_hours: 1  # Grace period before considering a post "missed"
   
 # OpenAI API settings
 openai:
