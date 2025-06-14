@@ -6,7 +6,7 @@ import structlog
 import tweepy
 
 from app.deps import get_config, get_twitter_client
-from app.monitoring import CostTracker, ActivityLogger
+from app.monitoring import ActivityLogger
 from app.exceptions import TwitterError
 
 logger = structlog.get_logger(__name__)
@@ -15,8 +15,9 @@ logger = structlog.get_logger(__name__)
 class TwitterPoster:
     """Handle Twitter posting operations with rate limiting and error handling."""
     
-    def __init__(self):
-        self.client = get_twitter_client()
+    def __init__(self, account_id: str = None):
+        self.account_id = account_id
+        self.client = get_twitter_client(account_id=account_id)
         self.activity_logger = ActivityLogger()
         
         # Load configuration
@@ -57,7 +58,8 @@ class TwitterPoster:
         """Post a tweet to Twitter with comprehensive error handling."""
         logger.info("Attempting to post tweet", 
                    character_count=len(tweet_text),
-                   post_enabled=self.post_enabled)
+                   post_enabled=self.post_enabled,
+                   account_id=self.account_id)
         
         try:
             # Validate tweet
@@ -95,17 +97,19 @@ class TwitterPoster:
                 logger.info("Tweet posted successfully", 
                            tweet_id=tweet_id,
                            character_count=len(tweet_text),
-                           api_time_ms=api_time)
+                           api_time_ms=api_time,
+                           account_id=self.account_id)
                 
                 # Log to activity logger
                 self.activity_logger.log_system_event(
                     event_type="tweet_posted",
-                    message=f"Successfully posted tweet {tweet_id}",
+                    message=f"Successfully posted tweet {tweet_id} for account {self.account_id}",
                     level="INFO",
                     metadata={
                         "tweet_id": tweet_id,
                         "character_count": len(tweet_text),
-                        "api_time_ms": api_time
+                        "api_time_ms": api_time,
+                        "account_id": self.account_id
                     }
                 )
                 
@@ -242,31 +246,31 @@ class TwitterPoster:
 
 
 # Convenience functions for use in other modules
-async def post_tweet_simple(tweet_text: str) -> bool:
+async def post_tweet_simple(tweet_text: str, account_id: str = None) -> bool:
     """Simple tweet posting function that returns success/failure."""
     try:
-        poster = TwitterPoster()
+        poster = TwitterPoster(account_id=account_id)
         result = await poster.post_tweet(tweet_text)
         return result["status"] in ["posted", "simulated"]
     except Exception as e:
-        logger.error("Simple tweet posting failed", error=str(e))
+        logger.error("Simple tweet posting failed", account_id=account_id, error=str(e))
         return False
 
 
-def test_twitter_connection() -> bool:
+def test_twitter_connection(account_id: str = None) -> bool:
     """Test Twitter API connection."""
     try:
-        poster = TwitterPoster()
+        poster = TwitterPoster(account_id=account_id)
         return poster.test_connection()
     except Exception:
         return False
 
 
-def get_twitter_account_info() -> Optional[Dict[str, any]]:
+def get_twitter_account_info(account_id: str = None) -> Optional[Dict[str, any]]:
     """Get Twitter account information."""
     try:
-        poster = TwitterPoster()
+        poster = TwitterPoster(account_id=account_id)
         return poster.get_account_info()
     except Exception as e:
-        logger.error("Failed to get Twitter account info", error=str(e))
+        logger.error("Failed to get Twitter account info", account_id=account_id, error=str(e))
         return None

@@ -11,6 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.deps import get_config
 from app.generation import generate_and_post_tweet
 from app.monitoring import ActivityLogger
+from app.account_manager import get_account_ids
 from app.exceptions import ZenKinkBotException
 
 logger = structlog.get_logger(__name__)
@@ -190,9 +191,9 @@ class TweetScheduler:
             raise ZenKinkBotException(f"Failed to schedule immediate post: {str(e)}")
     
     async def _scheduled_post_job(self):
-        """The main scheduled posting job."""
+        """The main scheduled posting job - posts one tweet per account."""
         try:
-            logger.info("Starting scheduled tweet generation and posting")
+            logger.info("Starting scheduled multi-account tweet generation and posting")
             
             # Check if emergency stop is active
             from app.main import emergency_stop
@@ -205,30 +206,69 @@ class TweetScheduler:
                 )
                 return
             
-            # Generate and post tweet
-            result = await generate_and_post_tweet()
+            # Get all available accounts
+            account_ids = get_account_ids()
+            if not account_ids:
+                logger.warning("No accounts found, skipping scheduled post")
+                self.activity_logger.log_system_event(
+                    "scheduled_post_skipped",
+                    "No accounts configured",
+                    level="WARNING"
+                )
+                return
             
-            if result["status"] == "success":
-                logger.info("Scheduled tweet posted successfully", 
-                           tweet_id=result.get("twitter_id"),
-                           character_count=result.get("character_count"))
+            logger.info("Posting to accounts", account_count=len(account_ids), accounts=account_ids)
+            
+            # Post one tweet per account
+            all_results = []
+            successful_posts = 0
+            failed_posts = 0
+            
+            for account_id in account_ids:
+                try:
+                    logger.info("Posting for account", account_id=account_id)
+                    result = await generate_and_post_tweet(account_id=account_id)
+                    result["account_id"] = account_id
+                    all_results.append(result)
+                    
+                    if result["status"] == "success":
+                        successful_posts += 1
+                        logger.info("Scheduled tweet posted successfully for account", 
+                                   account_id=account_id,
+                                   tweet_id=result.get("twitter_id"),
+                                   character_count=result.get("character_count"))
+                    else:
+                        failed_posts += 1
+                        logger.error("Scheduled tweet posting failed for account", 
+                                   account_id=account_id,
+                                   error=result.get("error"))
                 
-                self.activity_logger.log_system_event(
-                    "scheduled_post_success",
-                    f"Scheduled tweet posted: {result.get('twitter_id', 'unknown')}",
-                    level="INFO",
-                    metadata=result
-                )
-            else:
-                logger.error("Scheduled tweet posting failed", 
-                           error=result.get("error"))
-                
-                self.activity_logger.log_system_event(
-                    "scheduled_post_failed",
-                    f"Scheduled post failed: {result.get('error', 'unknown error')}",
-                    level="ERROR",
-                    metadata=result
-                )
+                except Exception as e:
+                    failed_posts += 1
+                    logger.error("Scheduled post failed for account", account_id=account_id, error=str(e))
+                    all_results.append({
+                        "account_id": account_id,
+                        "status": "failed",
+                        "error": str(e)
+                    })
+            
+            # Log overall results
+            logger.info("Scheduled posting complete", 
+                       total_accounts=len(account_ids),
+                       successful=successful_posts,
+                       failed=failed_posts)
+            
+            self.activity_logger.log_system_event(
+                "scheduled_multi_post_complete",
+                f"Multi-account scheduled posting: {successful_posts} success, {failed_posts} failed",
+                level="INFO" if failed_posts == 0 else "WARNING",
+                metadata={
+                    "total_accounts": len(account_ids),
+                    "successful": successful_posts,
+                    "failed": failed_posts,
+                    "results": all_results
+                }
+            )
             
         except Exception as e:
             logger.error("Scheduled post job failed", error=str(e))

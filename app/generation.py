@@ -9,8 +9,8 @@ from openai import OpenAI
 
 from app.deps import get_config, get_openai_client, get_persona, get_exemplars
 from app.vector_search import get_random_seed_with_deduplication, get_generation_context
-from app.monitoring import CostTracker, ActivityLogger
-from app.exceptions import GenerationError, OpenAIError, CostLimitError
+from app.monitoring import ActivityLogger
+from app.exceptions import GenerationError, OpenAIError
 
 logger = structlog.get_logger(__name__)
 
@@ -18,10 +18,10 @@ logger = structlog.get_logger(__name__)
 class TweetGenerator:
     """Generate tweets using OpenAI API and context from vector database."""
     
-    def __init__(self):
+    def __init__(self, account_id: str = None):
         self.openai_client = get_openai_client()
-        self.cost_tracker = CostTracker()
         self.activity_logger = ActivityLogger()
+        self.account_id = account_id
         
         # Load configuration
         config = get_config()
@@ -40,9 +40,7 @@ class TweetGenerator:
         
     def check_cost_limits(self) -> bool:
         """Check if we're within cost limits before generating."""
-        if not self.cost_tracker.check_daily_limit():
-            daily_cost = self.cost_tracker.get_daily_cost()
-            raise CostLimitError(f"Daily cost limit exceeded: ${daily_cost:.2f}")
+        # Cost tracking removed for simplification
         return True
     
     def build_generation_prompt(self, context_chunks: List[Dict[str, any]], 
@@ -217,30 +215,11 @@ class TweetGenerator:
                (shortened_text.startswith("'") and shortened_text.endswith("'")):
                 shortened_text = shortened_text[1:-1]
             
-            # Record cost based on shortening model
-            total_tokens = response.usage.total_tokens
-            if "gpt-4.1" in self.shortening_model.lower():
-                cost = (response.usage.prompt_tokens * 0.0025 + response.usage.completion_tokens * 0.01) / 1000
-            else:  # GPT-3.5-turbo or other
-                cost = total_tokens * 0.002 / 1000
-            
-            self.cost_tracker.record_cost(
-                service="openai",
-                operation="shortening",
-                cost_usd=cost,
-                tokens_used=total_tokens,
-                metadata={
-                    "model": self.shortening_model,
-                    "original_length": len(tweet_text),
-                    "shortened_length": len(shortened_text),
-                    "api_time_ms": int(api_time * 1000)
-                }
-            )
+            # Cost tracking removed for simplification
             
             logger.info("Tweet shortened successfully",
                        original_length=len(tweet_text),
-                       shortened_length=len(shortened_text),
-                       cost_usd=cost)
+                       shortened_length=len(shortened_text))
             
             return shortened_text
             
@@ -260,15 +239,15 @@ class TweetGenerator:
             self.check_cost_limits()
             
             # Step 1: Get random seed chunk with deduplication
-            logger.info("Starting tweet generation")
-            seed_chunk, seed_hash = get_random_seed_with_deduplication()
+            logger.info("Starting tweet generation", account_id=self.account_id)
+            seed_chunk, seed_hash = get_random_seed_with_deduplication(account_id=self.account_id)
             
             # Step 2: Get context chunks
-            context_chunks = get_generation_context(seed_chunk)
+            context_chunks = get_generation_context(seed_chunk, account_id=self.account_id)
             
             # Step 3: Load persona and exemplars
-            persona = get_persona()
-            exemplars = get_exemplars()
+            persona = get_persona(account_id=self.account_id)
+            exemplars = get_exemplars(account_id=self.account_id)
             
             # Step 4: Build prompt
             prompt = self.build_generation_prompt(context_chunks, exemplars, persona)
@@ -315,12 +294,12 @@ class TweetGenerator:
             raise GenerationError(f"Tweet generation failed: {str(e)}")
 
 
-async def generate_and_post_tweet() -> Dict[str, any]:
+async def generate_and_post_tweet(account_id: str = None) -> Dict[str, any]:
     """Generate and post a tweet (main entry point)."""
     from app.twitter_client import TwitterPoster
     from app.security import ContentFilter
     
-    generator = TweetGenerator()
+    generator = TweetGenerator(account_id=account_id)
     
     try:
         # Generate tweet
@@ -332,7 +311,7 @@ async def generate_and_post_tweet() -> Dict[str, any]:
             raise GenerationError("Generated content failed safety filters")
         
         # Post to Twitter
-        twitter_poster = TwitterPoster()
+        twitter_poster = TwitterPoster(account_id=account_id)
         post_result = await twitter_poster.post_tweet(generation_result["tweet_text"])
         
         # Log successful post
@@ -345,7 +324,8 @@ async def generate_and_post_tweet() -> Dict[str, any]:
             metadata={
                 "seed_source": generation_result["seed_source"],
                 "was_shortened": generation_result["was_shortened"],
-                "character_count": generation_result["character_count"]
+                "character_count": generation_result["character_count"],
+                "account_id": account_id
             }
         )
         
@@ -356,22 +336,22 @@ async def generate_and_post_tweet() -> Dict[str, any]:
         }
         
     except Exception as e:
-        logger.error("Generate and post failed", error=str(e))
+        logger.error("Generate and post failed", account_id=account_id, error=str(e))
         return {
             "status": "failed",
             "error": str(e)
         }
 
 
-async def generate_test_tweet(custom_persona: Optional[str] = None) -> Dict[str, any]:
+async def generate_test_tweet(custom_persona: Optional[str] = None, account_id: str = None) -> Dict[str, any]:
     """Generate a test tweet without posting."""
-    generator = TweetGenerator()
+    generator = TweetGenerator(account_id=account_id)
     
     try:
         # Override persona if provided
         if custom_persona:
             original_get_persona = get_persona
-            def mock_get_persona():
+            def mock_get_persona(account_id_param: str = None):
                 return custom_persona
             
             # Temporarily replace the function
@@ -392,7 +372,7 @@ async def generate_test_tweet(custom_persona: Optional[str] = None) -> Dict[str,
         }
         
     except Exception as e:
-        logger.error("Test tweet generation failed", error=str(e))
+        logger.error("Test tweet generation failed", account_id=account_id, error=str(e))
         return {
             "status": "failed",
             "error": str(e)
