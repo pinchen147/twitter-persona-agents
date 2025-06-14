@@ -47,7 +47,7 @@ sleep 5
 if docker-compose -f docker/docker-compose.yml ps | grep -q "Up"; then
     echo "✅ Services started successfully!"
     echo ""
-    echo "🎛️  Control Panel: http://localhost:8000"
+    echo "🎛️  Control Panel: http://localhost:8582"
     echo "🔍 Health Check:  http://localhost:8000/health"
     echo "📊 Deep Health:   http://localhost:8000/health/deep"
     echo ""
