@@ -327,6 +327,17 @@ async def generate_and_post_tweet(account_id: str = None) -> Dict[str, any]:
         
     except Exception as e:
         logger.error("Generate and post failed", account_id=account_id, error=str(e))
+        
+        # Log the failed attempt
+        generator.activity_logger.log_post_attempt(
+            tweet_text=generation_result.get("tweet_text", "") if 'generation_result' in locals() else "",
+            seed_chunk_hash=generation_result.get("seed_chunk_hash", "") if 'generation_result' in locals() else "",
+            status="failed",
+            error_message=str(e),
+            generation_time_ms=generation_result.get("generation_time_ms") if 'generation_result' in locals() else None,
+            account_id=account_id
+        )
+        
         return {
             "status": "failed",
             "error": str(e)
