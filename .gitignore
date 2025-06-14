@@ -1,3 +1,6 @@
+# account credentials
+accounts/*.json
+
 # Python
 __pycache__/
 *.py[cod]
