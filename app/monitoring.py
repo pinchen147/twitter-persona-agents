@@ -127,6 +127,7 @@ class ActivityLogger:
                     twitter_id TEXT,
                     error_message TEXT,
                     generation_time_ms INTEGER,
+                    account_id TEXT,
                     metadata TEXT
                 )
             """)
@@ -155,17 +156,17 @@ class ActivityLogger:
                         status: str, twitter_id: Optional[str] = None,
                         error_message: Optional[str] = None,
                         generation_time_ms: Optional[int] = None,
-                        metadata: Optional[dict] = None,
-                        account_id: Optional[str] = None):
+                        account_id: Optional[str] = None,
+                        metadata: Optional[dict] = None):
         """Log a tweet posting attempt."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 INSERT INTO post_history 
-                (account_id, tweet_text, seed_chunk_hash, status, twitter_id, error_message, 
-                 generation_time_ms, metadata)
+                (tweet_text, seed_chunk_hash, status, twitter_id, error_message, 
+                 generation_time_ms, account_id, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (account_id, tweet_text, seed_chunk_hash, status, twitter_id, error_message,
-                  generation_time_ms, json.dumps(metadata) if metadata else None))
+            """, (tweet_text, seed_chunk_hash, status, twitter_id, error_message,
+                  generation_time_ms, account_id, json.dumps(metadata) if metadata else None))
             conn.commit()
         
         logger.info("Post attempt logged", 
@@ -185,13 +186,13 @@ class ActivityLogger:
                    event_type=event_type, level=level, message=message)
     
     def get_recent_posts(self, limit: int = 50, account_filter: Optional[str] = None) -> List[dict]:
-        """Get recent post history, optionally filtered by account."""
+        """Get recent post history."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             if account_filter:
                 cursor = conn.execute("""
                     SELECT * FROM post_history 
-                    WHERE account_id = ?
+                    WHERE account_id = ? OR account_id IS NULL
                     ORDER BY timestamp DESC 
                     LIMIT ?
                 """, (account_filter, limit))
@@ -255,6 +256,42 @@ class ActivityLogger:
                 successful = cursor.fetchone()[0]
             
             return successful / total
+    
+    def get_last_successful_post_time(self, account_id: Optional[str] = None) -> Optional[datetime]:
+        """Get the timestamp of the most recent successful post."""
+        with sqlite3.connect(self.db_path) as conn:
+            if account_id:
+                cursor = conn.execute("""
+                    SELECT timestamp FROM post_history 
+                    WHERE status = 'success' AND (account_id = ? OR account_id IS NULL)
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                """, (account_id,))
+            else:
+                cursor = conn.execute("""
+                    SELECT timestamp FROM post_history 
+                    WHERE status = 'success'
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                """)
+            
+            result = cursor.fetchone()
+            if result:
+                # Parse the timestamp string back to datetime
+                timestamp_str = result[0]
+                try:
+                    return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # Try parsing as SQLite DATETIME format
+                    try:
+                        return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                    except (ValueError, TypeError):
+                        return None
+            return None
+    
+    def get_account_last_post_time(self, account_id: str) -> Optional[datetime]:
+        """Get the timestamp of the most recent successful post for a specific account."""
+        return self.get_last_successful_post_time(account_id=account_id)
 
 
 class HealthChecker:

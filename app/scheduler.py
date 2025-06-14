@@ -1,6 +1,7 @@
 """Scheduling system for automated tweet posting."""
 
 import asyncio
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 import structlog
@@ -28,8 +29,13 @@ class TweetScheduler:
         config = get_config()
         scheduler_config = config.get("scheduler", {})
         self.enabled = scheduler_config.get("enabled", True)
-        self.interval_hours = scheduler_config.get("post_interval_hours", 8)
+        self.interval_hours = scheduler_config.get("post_interval_hours", 6)  # Changed from 8 to 6 hours
         self.timezone = scheduler_config.get("timezone", "UTC")
+        
+        # Catch-up configuration
+        self.catch_up_enabled = scheduler_config.get("catch_up_enabled", True)
+        self.max_catch_up_posts = scheduler_config.get("max_catch_up_posts", 3)
+        self.catch_up_grace_period_hours = scheduler_config.get("catch_up_grace_period_hours", 1)
         
         # Track state
         self.is_running = False
@@ -71,14 +77,26 @@ class TweetScheduler:
             # Update next run time
             self._update_next_run_time()
             
+            # Check for missed posts and schedule catch-ups
+            if self.catch_up_enabled:
+                try:
+                    catch_up_count = self.check_for_missed_posts()
+                    if catch_up_count > 0:
+                        logger.info("Startup catch-up check completed", catch_up_posts_scheduled=catch_up_count)
+                    else:
+                        logger.info("Startup catch-up check completed - no missed posts")
+                except Exception as e:
+                    logger.error("Failed to check for missed posts on startup", error=str(e))
+            
             logger.info("Tweet scheduler started", 
                        interval_hours=self.interval_hours,
                        timezone=self.timezone,
-                       next_run=self.next_run_time)
+                       next_run=self.next_run_time,
+                       catch_up_enabled=self.catch_up_enabled)
             
             self.activity_logger.log_system_event(
                 "scheduler_started",
-                f"Automated posting started (every {self.interval_hours} hours)",
+                f"Automated posting started (every {self.interval_hours} hours) with catch-up: {self.catch_up_enabled}",
                 level="INFO"
             )
             
@@ -317,6 +335,161 @@ class TweetScheduler:
                     self.next_run_time = job.next_run_time
         except Exception as e:
             logger.error("Failed to update next run time", error=str(e))
+    
+    def check_for_missed_posts(self) -> int:
+        """
+        Check for missed posting opportunities and schedule catch-up posts.
+        Returns the number of catch-up posts scheduled.
+        """
+        if not self.catch_up_enabled:
+            logger.info("Catch-up posting disabled")
+            return 0
+        
+        try:
+            # Get all available accounts
+            account_ids = get_account_ids()
+            if not account_ids:
+                logger.info("No accounts found for missed posts check")
+                return 0
+            
+            scheduled_catch_ups = 0
+            current_time = datetime.now()
+            
+            for account_id in account_ids:
+                try:
+                    # Get last successful post time for this account
+                    last_post_time = self.activity_logger.get_account_last_post_time(account_id)
+                    
+                    if last_post_time is None:
+                        # No previous posts for this account, schedule one catch-up
+                        logger.info("No previous posts found for account, scheduling catch-up", account_id=account_id)
+                        self._schedule_catch_up_post(account_id, delay_seconds=scheduled_catch_ups * 30)
+                        scheduled_catch_ups += 1
+                        continue
+                    
+                    # Calculate time since last post
+                    time_since_last_post = current_time - last_post_time
+                    hours_since_last_post = time_since_last_post.total_seconds() / 3600
+                    
+                    # Calculate how many posting intervals have passed
+                    expected_posts = int((hours_since_last_post - self.catch_up_grace_period_hours) / self.interval_hours)
+                    
+                    if expected_posts > 0:
+                        # Limit catch-up posts to avoid spam
+                        catch_up_posts_needed = min(expected_posts, self.max_catch_up_posts)
+                        
+                        logger.info("Missed posts detected for account", 
+                                   account_id=account_id,
+                                   hours_since_last_post=round(hours_since_last_post, 2),
+                                   expected_posts=expected_posts,
+                                   catch_up_posts_needed=catch_up_posts_needed)
+                        
+                        # Schedule catch-up posts with staggered timing
+                        for i in range(catch_up_posts_needed):
+                            delay_seconds = scheduled_catch_ups * 30  # 30 seconds between catch-up posts
+                            self._schedule_catch_up_post(account_id, delay_seconds)
+                            scheduled_catch_ups += 1
+                            
+                            # Stop if we've reached the global limit
+                            if scheduled_catch_ups >= self.max_catch_up_posts * len(account_ids):
+                                break
+                    else:
+                        logger.debug("No missed posts for account", 
+                                   account_id=account_id,
+                                   hours_since_last_post=round(hours_since_last_post, 2))
+                
+                except Exception as e:
+                    logger.error("Error checking missed posts for account", account_id=account_id, error=str(e))
+            
+            if scheduled_catch_ups > 0:
+                logger.info("Scheduled catch-up posts", count=scheduled_catch_ups)
+                self.activity_logger.log_system_event(
+                    "catch_up_posts_scheduled",
+                    f"Scheduled {scheduled_catch_ups} catch-up posts due to missed posting windows",
+                    level="INFO",
+                    metadata={"catch_up_count": scheduled_catch_ups, "accounts": account_ids}
+                )
+            else:
+                logger.info("No catch-up posts needed")
+            
+            return scheduled_catch_ups
+            
+        except Exception as e:
+            logger.error("Failed to check for missed posts", error=str(e))
+            return 0
+    
+    def _schedule_catch_up_post(self, account_id: str, delay_seconds: int = 0):
+        """Schedule a single catch-up post for an account."""
+        try:
+            job_id = f"catch_up_post_{account_id}_{int(time.time())}"
+            run_time = datetime.now() + timedelta(seconds=max(5, delay_seconds))
+            
+            self.scheduler.add_job(
+                func=self._catch_up_post_job,
+                args=[account_id],
+                trigger='date',
+                run_date=run_time,
+                id=job_id,
+                name=f"Catch-up Tweet Post for {account_id}",
+                misfire_grace_time=60,
+                max_instances=1,
+                replace_existing=False
+            )
+            
+            logger.info("Catch-up post scheduled", 
+                       account_id=account_id, 
+                       run_time=run_time,
+                       job_id=job_id)
+            
+        except Exception as e:
+            logger.error("Failed to schedule catch-up post", account_id=account_id, error=str(e))
+    
+    async def _catch_up_post_job(self, account_id: str):
+        """Execute a catch-up post for a specific account."""
+        try:
+            logger.info("Executing catch-up post", account_id=account_id)
+            
+            # Check if emergency stop is active
+            from app.main import emergency_stop
+            if emergency_stop:
+                logger.warning("Catch-up post skipped due to emergency stop", account_id=account_id)
+                return
+            
+            # Generate and post tweet
+            result = await generate_and_post_tweet(account_id=account_id)
+            
+            if result["status"] == "success":
+                logger.info("Catch-up tweet posted successfully", 
+                           account_id=account_id,
+                           tweet_id=result.get("twitter_id"),
+                           character_count=result.get("character_count"))
+                
+                self.activity_logger.log_system_event(
+                    "catch_up_post_success",
+                    f"Catch-up tweet posted successfully for {account_id}",
+                    level="INFO",
+                    metadata={"account_id": account_id, "result": result}
+                )
+            else:
+                logger.error("Catch-up tweet posting failed", 
+                           account_id=account_id,
+                           error=result.get("error"))
+                
+                self.activity_logger.log_system_event(
+                    "catch_up_post_failed",
+                    f"Catch-up tweet posting failed for {account_id}: {result.get('error')}",
+                    level="ERROR",
+                    metadata={"account_id": account_id, "result": result}
+                )
+        
+        except Exception as e:
+            logger.error("Catch-up post job failed", account_id=account_id, error=str(e))
+            self.activity_logger.log_system_event(
+                "catch_up_post_error",
+                f"Catch-up post job error for {account_id}: {str(e)}",
+                level="ERROR",
+                metadata={"account_id": account_id, "error": str(e)}
+            )
 
 
 # Global scheduler instance

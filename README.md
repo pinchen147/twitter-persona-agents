@@ -27,8 +27,16 @@ The system is built on a core philosophy of **simplicity and ruthless pragmatism
 - **Multiple Twitter accounts** posting simultaneously
 - **Account-specific personas** and exemplar tweets  
 - **Shared or separate knowledge bases** per account
-- **Unified scheduler** posts one tweet per account
+- **Unified scheduler** posts one tweet per account every 6 hours (4 posts/day)
+- **Missed runs handling** with automatic catch-up posts
 - **Easy account addition** via JSON configuration files
+
+### **📅 Smart Scheduling & Catch-Up System**
+- **Automatic catch-up**: When your system restarts after being offline, it detects missed posting opportunities and schedules catch-up posts
+- **Configurable intervals**: Default 6-hour posting schedule (4 tweets/day) balances consistency with avoiding spam
+- **Grace period**: 1-hour buffer before posts are considered "missed" to avoid unnecessary catch-ups
+- **Intelligent limits**: Maximum 3 catch-up posts per account to prevent flooding timelines
+- **Staggered posting**: Catch-up posts are spaced 30 seconds apart to respect rate limits
 
 ## 🚀 Quick Start
 
@@ -176,6 +184,37 @@ graph TD
 - **Health Checks**: Automated system health validation
 - **Performance Metrics**: Success rates, response times, error analysis
 
+```
+
+### Configuration (`config.yaml`)
+```yaml
+# Posting schedule with missed runs handling
+scheduler:
+  enabled: true
+  post_interval_hours: 6  # Post every 6 hours (4 times per day)
+  timezone: "UTC"
+  
+  # Catch-up posting for missed runs
+  catch_up_enabled: true
+  max_catch_up_posts: 3  # Maximum catch-up posts per account on startup
+  catch_up_grace_period_hours: 1  # Grace period before considering a post "missed"
+
+# OpenAI API settings
+openai:
+  model: "gpt-4.1"  # Use gpt-4.1 for creative tasks, or "o3" for complex reasoning
+  shortening_model: "gpt-4.1"
+  max_tokens: 1000
+  temperature: 0.8
+
+# Twitter API settings
+twitter:
+  post_enabled: true  # Set to false for testing
+  character_limit: 280
+
+# Cost management
+cost_limits:
+  daily_limit_usd: 10.00
+  emergency_stop_enabled: true
 ```
 
 ### Secrets (`.env`)
@@ -336,6 +375,7 @@ Modify `prompts/base_prompt.j2` and `prompts/shortening_prompt.j2` for custom ge
 - **Embeddings**: ~$0.001
 - **Moderation**: Free
 - **Total**: ~$0.02-0.15 per tweet per account
+- **Daily cost per account**: ~$0.08-0.60 (4 tweets at 6-hour intervals)
 
 ### Performance Metrics
 - **Generation Time**: 3-8 seconds average
@@ -389,6 +429,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Check account_id matches filename (e.g., `zenkink.json` → `account_id: "zenkink"`)
 - Run migration script if upgrading from single-account setup
 
+**\"No catch-up posts scheduled\"**
+- Check if `catch_up_enabled: true` in config.yaml
+- Verify posts exist in database (check `data/post_history.db`)
+- Ensure enough time has passed since last post (> interval + grace period)
+- Review logs for "Startup catch-up check completed" messages
+
+**\"Too many catch-up posts\"**
+- Adjust `max_catch_up_posts` in config.yaml (default: 3)
+- Increase `catch_up_grace_period_hours` to be less aggressive (default: 1)
+- Check if multiple accounts are triggering catch-ups simultaneously
+
 ### Getting Help
 1. Check the logs in `data/logs/`
 2. Use the health check endpoints
@@ -410,7 +461,8 @@ Each account operates independently with its own:
 
 ### **Unified Scheduling**
 - **Single scheduler** manages all accounts
-- **One tweet per account** per scheduled interval
+- **One tweet per account** per scheduled interval (every 6 hours = 4 posts/day)
+- **Missed runs handling** with automatic catch-up posts on startup
 - **Parallel processing** for efficient multi-account posting
 - **Account-aware error handling** and retry logic
 
