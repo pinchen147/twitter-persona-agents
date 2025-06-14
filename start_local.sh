@@ -30,23 +30,23 @@ fi
 echo "🔧 Activating virtual environment..."
 source venv/bin/activate
 
-# Install/update dependencies
-echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+# # Install/update dependencies
+# echo "📦 Installing dependencies..."
+# pip install -r requirements.txt
 
-# Check if data directory exists
-if [ ! -d "data" ]; then
-    echo "📁 Creating data directory..."
-    mkdir -p data/{chroma,logs,backups,source_material}
-fi
+# # Check if data directory exists
+# if [ ! -d "data" ]; then
+#     echo "📁 Creating data directory..."
+#     mkdir -p data/{chroma,logs,backups,source_material}
+# fi
 
-# Check if knowledge base exists
-if [ ! -d "data/chroma" ] || [ -z "$(ls -A data/chroma 2>/dev/null)" ]; then
-    echo "⚠️  Warning: Knowledge base appears empty."
-    echo "   Add PDF files to data/source_material/ and run:"
-    echo "   python -m ingest.split_embed"
-    echo ""
-fi
+# # Check if knowledge base exists
+# if [ ! -d "data/chroma" ] || [ -z "$(ls -A data/chroma 2>/dev/null)" ]; then
+#     echo "⚠️  Warning: Knowledge base appears empty."
+#     echo "   Add PDF files to data/source_material/ and run:"
+#     echo "   python -m ingest.split_embed"
+#     echo ""
+# fi
 
 # Start Redis if not already running (for local development)
 if ! pgrep -x "redis-server" > /dev/null; then
@@ -77,4 +77,4 @@ echo "Press Ctrl+C to stop the server"
 echo ""
 
 # Start with uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8583 --reload

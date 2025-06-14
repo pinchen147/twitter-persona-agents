@@ -146,19 +146,7 @@ class TweetGenerator:
             else:  # GPT-3.5-turbo or other
                 cost = (prompt_tokens * 0.0015 + completion_tokens * 0.002) / 1000
             
-            self.cost_tracker.record_cost(
-                service="openai",
-                operation="completion",
-                cost_usd=cost,
-                tokens_used=total_tokens,
-                metadata={
-                    "model": self.model,
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "reasoning_tokens": reasoning_tokens,
-                    "api_time_ms": int(api_time * 1000)
-                }
-            )
+            # Cost tracking removed for simplification
             
             logger.info("Tweet generated successfully", 
                        model=self.model,
