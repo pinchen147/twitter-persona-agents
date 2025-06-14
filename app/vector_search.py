@@ -5,7 +5,7 @@ from typing import List, Dict, Optional, Tuple
 import structlog
 from openai import OpenAI
 
-from app.deps import get_vector_db, get_config, get_openai_client
+from app.deps import get_vector_db, get_config, get_openai_client, get_vector_collection_name
 from app.monitoring import ActivityLogger
 from app.exceptions import VectorDBError, OpenAIError
 
@@ -15,13 +15,23 @@ logger = structlog.get_logger(__name__)
 class VectorSearcher:
     """Handle vector database search operations."""
     
-    def __init__(self):
+    def __init__(self, account_id: str = None, collection_name: str = None):
         self.client = get_vector_db()
         self.openai_client = get_openai_client()
         self.activity_logger = ActivityLogger()
+        self.account_id = account_id
         
         config = get_config()
-        self.collection_name = config.get("vector_db", {}).get("collection_name", "zen_kink_knowledge")
+        
+        # Determine collection name
+        if collection_name:
+            self.collection_name = collection_name
+        elif account_id:
+            self.collection_name = get_vector_collection_name(account_id)
+        else:
+            # Fallback to config default
+            self.collection_name = config.get("vector_db", {}).get("collection_name", "zen_kink_knowledge")
+        
         self.embedding_model = config.get("openai", {}).get("embedding_model", "text-embedding-3-small")
         self.similarity_threshold = config.get("text_processing", {}).get("similarity_threshold", 0.7)
         
@@ -291,9 +301,9 @@ class VectorSearcher:
 
 
 # Convenience functions for use in other modules
-def get_random_seed_with_deduplication() -> Tuple[Dict[str, any], str]:
+def get_random_seed_with_deduplication(account_id: str = None) -> Tuple[Dict[str, any], str]:
     """Get random seed chunk with deduplication check."""
-    searcher = VectorSearcher()
+    searcher = VectorSearcher(account_id=account_id)
     activity_logger = ActivityLogger()
     
     # Get recent seed hashes for deduplication
@@ -308,13 +318,13 @@ def get_random_seed_with_deduplication() -> Tuple[Dict[str, any], str]:
     return seed_chunk, seed_hash
 
 
-def get_generation_context(seed_chunk: Dict[str, any]) -> List[Dict[str, any]]:
+def get_generation_context(seed_chunk: Dict[str, any], account_id: str = None) -> List[Dict[str, any]]:
     """Get context chunks for generation."""
-    searcher = VectorSearcher()
+    searcher = VectorSearcher(account_id=account_id)
     return searcher.get_context_for_generation(seed_chunk)
 
 
-def search_knowledge_base(query: str, limit: int = 10) -> List[Dict[str, any]]:
+def search_knowledge_base(query: str, limit: int = 10, account_id: str = None) -> List[Dict[str, any]]:
     """Search the knowledge base (for UI)."""
-    searcher = VectorSearcher()
+    searcher = VectorSearcher(account_id=account_id)
     return searcher.search_chunks_by_text(query, limit=limit)

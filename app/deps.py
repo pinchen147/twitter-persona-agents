@@ -12,6 +12,7 @@ from chromadb.config import Settings
 from dotenv import load_dotenv
 
 from app.exceptions import ConfigurationError
+from app.account_manager import get_account, load_all_accounts
 
 # Load environment variables from config/.env
 load_dotenv("config/.env")
@@ -41,13 +42,27 @@ def get_openai_client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def get_twitter_client() -> tweepy.Client:
-    """Create Twitter client with credentials from environment."""
-    bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
-    api_key = os.getenv("TWITTER_API_KEY")
-    api_secret = os.getenv("TWITTER_API_SECRET")
-    access_token = os.getenv("TWITTER_ACCESS_TOKEN")
-    access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
+def get_twitter_client(account_id: str = None) -> tweepy.Client:
+    """Create Twitter client with credentials from environment or account config."""
+    if account_id:
+        # Get credentials from account configuration
+        account = get_account(account_id)
+        if not account:
+            raise ConfigurationError(f"Account not found: {account_id}")
+        
+        creds = account["twitter_credentials"]
+        bearer_token = creds["bearer_token"]
+        api_key = creds["api_key"]
+        api_secret = creds["api_secret"]
+        access_token = creds["access_token"]
+        access_token_secret = creds["access_token_secret"]
+    else:
+        # Fallback to environment variables (for backward compatibility)
+        bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
+        api_key = os.getenv("TWITTER_API_KEY")
+        api_secret = os.getenv("TWITTER_API_SECRET")
+        access_token = os.getenv("TWITTER_ACCESS_TOKEN")
+        access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
     
     missing_creds = []
     if not bearer_token:
@@ -62,7 +77,8 @@ def get_twitter_client() -> tweepy.Client:
         missing_creds.append("TWITTER_ACCESS_TOKEN_SECRET")
     
     if missing_creds:
-        raise ConfigurationError(f"Missing Twitter credentials: {', '.join(missing_creds)}")
+        source = f"account {account_id}" if account_id else "environment"
+        raise ConfigurationError(f"Missing Twitter credentials from {source}: {', '.join(missing_creds)}")
     
     return tweepy.Client(
         bearer_token=bearer_token,
@@ -88,8 +104,16 @@ def get_vector_db() -> chromadb.PersistentClient:
     )
 
 
-def get_persona() -> str:
-    """Load persona from persona.txt file."""
+def get_persona(account_id: str = None) -> str:
+    """Load persona from account config or fallback to persona.txt file."""
+    if account_id:
+        # Get persona from account configuration
+        account = get_account(account_id)
+        if account and "persona" in account:
+            return account["persona"]
+        raise ConfigurationError(f"Persona not found for account: {account_id}")
+    
+    # Fallback to file (for backward compatibility)
     persona_path = Path("data/persona.txt")
     if not persona_path.exists():
         raise ConfigurationError("Persona file not found at data/persona.txt")
@@ -97,8 +121,16 @@ def get_persona() -> str:
     return persona_path.read_text().strip()
 
 
-def get_exemplars() -> list[dict]:
-    """Load exemplar tweets from exemplars.json file."""
+def get_exemplars(account_id: str = None) -> list[dict]:
+    """Load exemplar tweets from account config or fallback to exemplars.json file."""
+    if account_id:
+        # Get exemplars from account configuration
+        account = get_account(account_id)
+        if account and "exemplars" in account:
+            return account["exemplars"]
+        raise ConfigurationError(f"Exemplars not found for account: {account_id}")
+    
+    # Fallback to file (for backward compatibility)
     import json
     
     exemplars_path = Path("data/exemplars.json")
@@ -109,3 +141,17 @@ def get_exemplars() -> list[dict]:
         exemplars = json.load(f)
     
     return exemplars
+
+
+def get_vector_collection_name(account_id: str = None) -> str:
+    """Get vector collection name from account config or fallback to default."""
+    if account_id:
+        # Get collection name from account configuration
+        account = get_account(account_id)
+        if account and "vector_collection" in account:
+            return account["vector_collection"]
+        raise ConfigurationError(f"Vector collection not found for account: {account_id}")
+    
+    # Fallback to config file
+    config = get_config()
+    return config.get("vector_db", {}).get("collection_name", "zen_kink_knowledge")

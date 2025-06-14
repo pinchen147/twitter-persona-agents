@@ -1,23 +1,34 @@
-# Zen Kink Bot 🧘✨
+# Multi-Account Twitter Agent 🧘✨
 
-![Project Status: Ready for Testing](https://img.shields.io/badge/status-ready_for_testing-green)
+![Project Status: Production Ready](https://img.shields.io/badge/status-production_ready-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python: 3.11+](https://img.shields.io/badge/python-3.11+-blue)
+![Multi-Account Support](https://img.shields.io/badge/multi--account-supported-orange)
 
-An autonomous Twitter bot that generates and posts insightful content by synthesizing the philosophies of **Eckhart Tolle** (presence, mindfulness, ego-dissolution) and **Carolyn Elliott** (existential kink, shadow work).
+A **multi-account autonomous Twitter agent** that generates and posts insightful content by synthesizing philosophical teachings. Originally designed to blend **Eckhart Tolle** (presence, mindfulness, ego-dissolution) and **Carolyn Elliott** (existential kink, shadow work), the system now supports unlimited Twitter accounts with unique personas.
 
-The system is built on a core philosophy of **simplicity and ruthless pragmatism**. Its primary purpose is not just to post, but to serve as a platform for easily tuning and evolving a unique digital persona through a minimal, powerful control panel.
+The system is built on a core philosophy of **simplicity and ruthless pragmatism**. Each account can have its own personality, knowledge base, and posting style, managed through a unified control panel.
 
 ## ⚡ Ready to Run
 
 **The environment is already set up!** Just follow these steps:
 
 1. **Activate virtual environment**: `source venv/bin/activate`
-2. **Add API keys**: Copy `config/secrets.env.example` to `.env` and add your keys
-3. **Add PDF books**: Place them in `data/source_material/`
-4. **Build knowledge base**: `python -m ingest.split_embed`
-5. **Start application**: `uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload`
-6. **Open control panel**: http://localhost:8582
+2. **Add API keys**: Copy `config/secrets.env.example` to `config/.env` and add your keys
+3. **Run migration**: `python scripts/migrate_to_multi_account.py` 
+4. **Add PDF books**: Place them in `data/source_material/`
+5. **Build knowledge base**: `python -m ingest.split_embed`
+6. **Start application**: `uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload`
+7. **Open control panel**: http://localhost:8582
+
+## 🔄 Multi-Account Features
+
+### **Account Management**
+- **Multiple Twitter accounts** posting simultaneously
+- **Account-specific personas** and exemplar tweets  
+- **Shared or separate knowledge bases** per account
+- **Unified scheduler** posts one tweet per account
+- **Easy account addition** via JSON configuration files
 
 ## 🚀 Quick Start
 
@@ -44,10 +55,13 @@ source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 ```bash
 # Copy configuration templates
 cp config/config.example.yaml config/config.yaml
-cp config/secrets.env.example .env
+cp config/secrets.env.example config/.env
 
-# Edit your API keys in .env
-nano .env
+# Edit your API keys in config/.env
+nano config/.env
+
+# Run the multi-account migration
+python scripts/migrate_to_multi_account.py
 ```
 
 ### 3. Add Source Material
@@ -187,10 +201,49 @@ docker-compose -f docker/docker-compose.yml up
 
 ### Generate Test Tweet
 ```bash
-# Through the web UI: Use \"Generate Test Tweet\" button
+# Through the web UI: Use "Generate Test Tweet" button
 # Or via API:
 curl -X POST http://localhost:8582/api/test-generation
+
+# For specific account:
+curl -X POST http://localhost:8582/api/test-generation/zenkink
 ```
+
+## 🎯 Multi-Account API Endpoints
+
+### Account Management
+```bash
+# List all accounts
+GET /api/accounts
+
+# Get account status
+GET /api/status/{account_id}
+
+# Force post for specific account
+POST /api/force-post/{account_id}
+
+# Test generation for specific account
+POST /api/test-generation/{account_id}
+
+# Search account's knowledge base
+GET /api/search-chunks/{account_id}?query=presence
+```
+
+### Adding New Accounts
+1. **Create account file**: `accounts/mybot.json`
+2. **Copy structure** from `accounts/zenkink.json`
+3. **Update configuration**:
+   ```json
+   {
+     "account_id": "mybot",
+     "display_name": "My Bot",
+     "persona": "Your unique bot personality...",
+     "exemplars": [...],
+     "vector_collection": "mybot_knowledge",
+     "twitter_credentials": {...}
+   }
+   ```
+4. **Restart application** - new account automatically included
 
 ## 📦 Deployment
 
@@ -226,19 +279,20 @@ gcloud run deploy zenkink-bot \
 ### Health Endpoints
 - `GET /health` - Basic health check
 - `GET /health/deep` - Comprehensive system validation
-- `GET /api/status` - Real-time system status
-- `GET /api/costs` - Cost tracking and budget status
+- `GET /api/status` - Real-time system status (legacy, single account)
+- `GET /api/status/{account_id}` - Account-specific status
+- `GET /api/accounts` - List all configured accounts
 
 ### Logs & Metrics
-- **Structured Logging**: JSON logs with correlation IDs
-- **Cost Tracking**: Real-time API usage and costs
-- **Activity History**: Complete posting history with metadata
-- **Error Analysis**: Failure rates and error categorization
+- **Structured Logging**: JSON logs with correlation IDs and account context
+- **Activity History**: Complete posting history with metadata per account
+- **Multi-Account Monitoring**: Track performance across all accounts
+- **Error Analysis**: Failure rates and error categorization per account
 
 ### Emergency Procedures
 1. **Emergency Stop**: Use red button in web UI or `POST /emergency-stop`
-2. **Cost Overrun**: Automatic stops at daily limit with alerts
-3. **API Failures**: Circuit breakers with exponential backoff
+2. **Account-Specific Issues**: Monitor individual account health via `/api/status/{account_id}`
+3. **API Failures**: Circuit breakers with exponential backoff per account
 4. **Content Issues**: Multi-layer filtering with manual override
 
 ## 🔒 Security & Compliance
@@ -261,11 +315,12 @@ gcloud run deploy zenkink-bot \
 
 ## 🛠️ Customization
 
-### Persona Tuning
-Edit `data/persona.txt` or use the web UI to adjust the bot's voice and personality.
+### Account-Specific Customization
+Each account is fully customizable via its JSON configuration:
 
-### Style Examples
-Add/remove exemplar tweets via the web UI to guide generation style.
+**Persona Tuning**: Edit the `persona` field in `accounts/{account_id}.json`
+**Style Examples**: Modify the `exemplars` array for account-specific tweet styles
+**Knowledge Base**: Set different `vector_collection` names for account-specific knowledge
 
 ### Source Material
 Add new PDF books to `data/source_material/` and re-run the ingestion pipeline.
@@ -275,11 +330,12 @@ Modify `prompts/base_prompt.j2` and `prompts/shortening_prompt.j2` for custom ge
 
 ## 📈 Performance & Costs
 
-### Typical Costs (per tweet)
-- **GPT-4 Generation**: ~$0.02-0.05
+### Typical Costs (per tweet per account)
+- **o3 Generation**: ~$0.05-0.15 (reasoning model)
+- **GPT-4.1 Generation**: ~$0.02-0.05 (faster alternative)
 - **Embeddings**: ~$0.001
 - **Moderation**: Free
-- **Total**: ~$0.02-0.06 per tweet
+- **Total**: ~$0.02-0.15 per tweet per account
 
 ### Performance Metrics
 - **Generation Time**: 3-8 seconds average
@@ -328,10 +384,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Run `python -m ingest.split_embed` to build knowledge base
 - Check for errors in PDF processing logs
 
-**\"Cost limit exceeded\"**
-- Check daily spending in web UI
-- Adjust `daily_limit_usd` in config
-- Use emergency stop if needed
+**\"Account {account_id} not found\"**
+- Verify account JSON file exists in `accounts/` directory
+- Check account_id matches filename (e.g., `zenkink.json` → `account_id: "zenkink"`)
+- Run migration script if upgrading from single-account setup
 
 ### Getting Help
 1. Check the logs in `data/logs/`
@@ -342,20 +398,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 
-#### ***Relevant Context (The "Why" Behind the decisions)**
+## 📋 Multi-Account Architecture
 
-*   **Philosophical Source Material:** The knowledge base will be built from the works of **Eckhart Tolle** (*The Power of Now*, etc.) and **Carolyn Elliott** (*Existential Kink*). The desired voice is a blend of their core concepts: presence, ego-dissolution, and shadow work.
-*   **Reference Architecture:** The existing project `https://github.com/llj0824/longevity_agent` is a good model for the desired level of simplicity, code structure, and maintainability.
-*   **Core Generation Logic Flow:** We have decided on the following simple, fully-automated flow:
-    1.  **Random Seed:** The process begins by selecting a **random text chunk** from the vector database.
-    2.  **Context Retrieval:** Using the seed chunk's embedding, perform a vector similarity search to find other thematically related chunks.
-    3.  **Style Retrieval:** Select a few exemplar tweets from the flat file to guide the style.
-    4.  **Dynamic Prompt Generation:** Construct a prompt for an LLM that includes the persona, the retrieved context chunks, and the style exemplars.
-    5.  **Post:** Send the generated tweet to Twitter.
-*   **Key Design Decisions Already Made:**
-    *   **Chunking Strategy:** We prefer **large chunks** to preserve as much context as possible.
-    *   **Voice Blending:** For V1, all source texts will be mixed into a **single, unified knowledge base**. We will not tag chunks by author.
-    *   **Quality Control:** The system will be **100% automated**. There will be no human review step before a tweet is posted. Quality is controlled by refining the persona and exemplars over time via the UI.
+### **Account-Specific Design**
+Each account operates independently with its own:
+- **Unique personas** and voice characteristics
+- **Custom exemplar tweets** for style guidance  
+- **Dedicated or shared knowledge bases** (vector collections)
+- **Independent Twitter credentials** and rate limiting
+- **Account-specific monitoring** and logging
 
+### **Unified Scheduling**
+- **Single scheduler** manages all accounts
+- **One tweet per account** per scheduled interval
+- **Parallel processing** for efficient multi-account posting
+- **Account-aware error handling** and retry logic
 
-**Ready to blend ancient wisdom with cutting-edge AI? Let's build something transformative.** 🚀✨
+### **Core Generation Logic** (Per Account)
+1. **Random Seed Selection**: Choose random chunk from account's vector collection
+2. **Context Retrieval**: Find related chunks using semantic similarity
+3. **Style Application**: Apply account's exemplar tweets for voice consistency  
+4. **Dynamic Prompting**: Combine account persona + context + exemplars
+5. **Multi-Account Posting**: Generate and post simultaneously across accounts
+
+### **Key Design Principles**
+- **Account Isolation**: Each account's content and style remain distinct
+- **Shared Infrastructure**: Common scheduling, monitoring, and health systems
+- **Zero-Configuration Scaling**: Add accounts by creating JSON files
+- **Backward Compatibility**: Legacy single-account endpoints still supported
+
+**Ready to scale your digital presence across multiple accounts? Let's build something transformative.** 🚀✨

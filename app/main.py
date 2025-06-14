@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from app.deps import get_config
 from app.monitoring import CostTracker, ActivityLogger, HealthChecker
 from app.exceptions import ZenKinkBotException
+from app.account_manager import load_all_accounts, get_account_ids, get_account
 import structlog
 
 # Load environment variables from config/.env
@@ -522,6 +523,230 @@ async def test_generation(request: Request):
         </div>
         """
         return HTMLResponse(html)
+
+
+# Multi-account API endpoints
+@app.get("/api/accounts")
+async def get_accounts():
+    """Get list of all accounts."""
+    try:
+        accounts = load_all_accounts()
+        account_list = []
+        
+        for account_id, account_config in accounts.items():
+            account_info = {
+                "account_id": account_id,
+                "display_name": account_config.get("display_name", account_id),
+                "vector_collection": account_config.get("vector_collection"),
+                "has_credentials": bool(account_config.get("twitter_credentials"))
+            }
+            account_list.append(account_info)
+        
+        return {"accounts": account_list}
+    except Exception as e:
+        logger.error("Get accounts API error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/status/{account_id}")
+async def get_account_status(account_id: str):
+    """Get current status for a specific account."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        health_status = health_checker.check_health(deep=False)
+        recent_posts = activity_logger.get_recent_posts(limit=5, account_filter=account_id)
+        
+        # Get scheduler status
+        from app.scheduler import get_scheduler_status
+        scheduler_status = get_scheduler_status()
+        
+        last_post = recent_posts[0] if recent_posts else None
+        
+        return {
+            "account_id": account_id,
+            "display_name": account.get("display_name", account_id),
+            "status": "active" if not emergency_stop else "stopped",
+            "health": health_status["status"],
+            "last_post": last_post,
+            "recent_posts": recent_posts,
+            "emergency_stop": emergency_stop,
+            "success_rate": activity_logger.get_success_rate(hours=24),
+            "scheduler": scheduler_status,
+            "vector_collection": account.get("vector_collection")
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Account status API error", account_id=account_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/force-post/{account_id}")
+async def force_post_account(account_id: str):
+    """Force generate and post a tweet for a specific account."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        if emergency_stop:
+            return HTMLResponse(f"""
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h4 class="font-medium text-red-800 mb-2">Cannot Post for {account_id}:</h4>
+                <p class="text-sm text-red-700">Emergency stop is active</p>
+            </div>
+            """)
+        
+        # Import here to avoid circular imports
+        from app.generation import generate_and_post_tweet
+        
+        logger.info("Starting forced tweet generation and posting", account_id=account_id)
+        result = await generate_and_post_tweet(account_id=account_id)
+        
+        if result.get("status") == "success":
+            html = f"""
+            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                <h4 class="font-medium text-green-800 mb-2">Tweet Posted Successfully for {account_id}!</h4>
+                <p class="text-sm bg-white p-3 rounded border">{result.get('tweet_text', '')}</p>
+                <div class="mt-2 text-xs text-green-600">
+                    Length: {result.get('character_count', 0)}/280 • 
+                    Source: {result.get('seed_source', 'Unknown')} • 
+                    Generation time: {result.get('generation_time_ms', 0)}ms
+                    {' • Shortened' if result.get('was_shortened') else ''}
+                    {f' • Twitter ID: {result.get("twitter_id")}' if result.get('twitter_id') else ''}
+                </div>
+            </div>
+            """
+        else:
+            html = f"""
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h4 class="font-medium text-red-800 mb-2">Post Failed for {account_id}:</h4>
+                <p class="text-sm text-red-700">{result.get('error', 'Unknown error')}</p>
+            </div>
+            """
+        
+        return HTMLResponse(html)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Force post failed", account_id=account_id, error=str(e))
+        html = f"""
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+            <h4 class="font-medium text-red-800 mb-2">Force Post Failed for {account_id}:</h4>
+            <p class="text-sm text-red-700">{str(e)}</p>
+        </div>
+        """
+        return HTMLResponse(html)
+
+
+@app.post("/api/test-generation/{account_id}")
+async def test_generation_account(account_id: str, request: Request):
+    """Generate a test tweet for a specific account without posting."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        form = await request.form()
+        custom_persona = form.get("persona")
+        
+        from app.generation import generate_test_tweet
+        result = await generate_test_tweet(custom_persona=custom_persona if custom_persona else None, account_id=account_id)
+        
+        if result["status"] == "success" and result.get('tweet_text'):
+            html = f"""
+            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                <h4 class="font-medium text-green-800 mb-2">Test Tweet Generated for {account_id}:</h4>
+                <p class="text-sm bg-white p-3 rounded border">{result['tweet_text']}</p>
+                <div class="mt-2 text-xs text-green-600">
+                    Length: {result['character_count']}/280 • 
+                    Source: {result['seed_source']} • 
+                    Generation time: {result['generation_time_ms']}ms
+                    {' • Shortened' if result.get('was_shortened') else ''}
+                </div>
+            </div>
+            """
+        elif result["status"] == "success" and not result.get('tweet_text'):
+            html = f"""
+            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                <h4 class="font-medium text-yellow-800 mb-2">Empty Tweet Generated for {account_id}:</h4>
+                <p class="text-sm text-yellow-700">Tweet generation completed but returned empty text. Check model configuration and prompts.</p>
+                <div class="mt-2 text-xs text-yellow-600">
+                    Source: {result.get('seed_source', 'Unknown')} • 
+                    Generation time: {result.get('generation_time_ms', 0)}ms
+                </div>
+            </div>
+            """
+        else:
+            html = f"""
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h4 class="font-medium text-red-800 mb-2">Generation Failed for {account_id}:</h4>
+                <p class="text-sm text-red-700">{result.get('error', 'Unknown error')}</p>
+            </div>
+            """
+        
+        return HTMLResponse(html)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Test generation failed", account_id=account_id, error=str(e))
+        html = f"""
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+            <h4 class="font-medium text-red-800 mb-2">Test Failed for {account_id}:</h4>
+            <p class="text-sm text-red-700">{str(e)}</p>
+        </div>
+        """
+        return HTMLResponse(html)
+
+
+@app.get("/api/search-chunks/{account_id}")
+async def search_chunks_account(account_id: str, query: str, limit: int = 10):
+    """Search knowledge base chunks for a specific account."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        from app.vector_search import search_knowledge_base
+        
+        if not query.strip():
+            return HTMLResponse(f"<p class='text-gray-500 text-sm'>Enter a search term to explore the knowledge base for {account_id}</p>")
+        
+        results = search_knowledge_base(query, limit=limit, account_id=account_id)
+        
+        if not results:
+            return HTMLResponse(f"<p class='text-gray-500 text-sm'>No results found for {account_id}</p>")
+        
+        # Build HTML response
+        html_parts = []
+        for result in results:
+            html_parts.append(f"""
+            <div class="p-3 bg-gray-50 rounded border">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-500">{result['source_title']} - Chunk {result['chunk_index']}</span>
+                    <span class="text-xs text-blue-600">Similarity: {result['similarity']}</span>
+                </div>
+                <p class="text-sm whitespace-pre-wrap">{result['full_text']}</p>
+                <div class="text-xs text-gray-400 mt-1">{result['word_count']} words</div>
+            </div>
+            """)
+        
+        return HTMLResponse('\n'.join(html_parts))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Chunk search failed", account_id=account_id, query=query, error=str(e))
+        return HTMLResponse(f"<p class='text-red-500 text-sm'>Search failed for {account_id}: {str(e)}</p>")
 
 
 if __name__ == "__main__":
