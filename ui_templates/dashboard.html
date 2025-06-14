@@ -23,8 +23,48 @@
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Zen Kink Bot - Control Panel</h1>
-            <p class="text-gray-600">Autonomous Twitter agent blending mindfulness and shadow work</p>
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Multi-Account Twitter Agent</h1>
+                    <p class="text-gray-600">Managing {{ all_accounts|length }} account{{ 's' if all_accounts|length != 1 else '' }}</p>
+                </div>
+                
+                <!-- Account Selector -->
+                <div class="relative">
+                    <select id="account-selector" 
+                            onchange="window.location.href='/?account_id=' + this.value"
+                            class="appearance-none bg-white border border-gray-300 rounded-md py-2 pl-3 pr-10 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        {% for account_id, account in all_accounts.items() %}
+                        <option value="{{ account_id }}" {% if account_id == current_account_id %}selected{% endif %}>
+                            {{ account.get('display_name', account_id) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Current Account Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-blue-800">
+                            Currently viewing: <strong>{{ current_account.get('display_name', current_account_id) }}</strong>
+                        </p>
+                        <p class="text-xs text-blue-600">
+                            Account ID: {{ current_account_id }} | 
+                            Vector Collection: {{ current_account.get('vector_collection', 'N/A') }}
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- System Status -->
@@ -89,13 +129,13 @@
                 </button>
                 
                 <button 
-                    hx-post="/api/force-post"
+                    hx-post="/api/force-post/{{ current_account_id }}"
                     hx-trigger="click"
-                    hx-confirm="Generate and post a tweet now?"
+                    hx-confirm="Generate and post a tweet for {{ current_account.get('display_name', current_account_id) }}?"
                     hx-indicator="#force-post-loading"
                     hx-target="#force-post-result"
                     class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    Force Post Now
+                    Force Post ({{ current_account.get('display_name', current_account_id) }})
                 </button>
                 
                 <button 
@@ -109,7 +149,7 @@
             </div>
             
             <div id="force-post-loading" class="htmx-indicator mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                🤖 Generating and posting tweet... This may take up to 60 seconds.
+                🤖 Generating and posting tweet for {{ current_account.get('display_name', current_account_id) }}... This may take up to 60 seconds.
             </div>
             <div id="force-post-result" class="mt-4"></div>
         </div>
@@ -121,7 +161,7 @@
                 <!-- Persona Configuration -->
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h2 class="text-xl font-semibold mb-4">Persona Configuration</h2>
-                    <form hx-post="/api/persona" hx-trigger="submit">
+                    <form hx-post="/api/persona/{{ current_account_id }}" hx-trigger="submit">
                         <textarea 
                             name="persona"
                             rows="8"
@@ -134,7 +174,7 @@
                             </button>
                             <button 
                                 type="button"
-                                hx-post="/api/test-generation"
+                                hx-post="/api/test-generation/{{ current_account_id }}"
                                 hx-include="[name='persona']"
                                 hx-target="#test-result"
                                 hx-indicator="#test-loading"
@@ -145,7 +185,7 @@
                     </form>
                     
                     <div id="test-loading" class="htmx-indicator mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                        🤖 Generating tweet... This may take up to 30 seconds.
+                        🤖 Generating tweet for {{ current_account.get('display_name', current_account_id) }}... This may take up to 30 seconds.
                     </div>
                     <div id="test-result" class="mt-4"></div>
                 </div>
@@ -155,7 +195,7 @@
                     <h2 class="text-xl font-semibold mb-4">Exemplar Tweets (Style Guide)</h2>
                     
                     <!-- Add New Exemplar -->
-                    <form hx-post="/api/exemplars" hx-trigger="submit" hx-target="#exemplars-list" hx-swap="beforeend">
+                    <form hx-post="/api/exemplars/{{ current_account_id }}" hx-trigger="submit" hx-target="#exemplars-list" hx-swap="beforeend">
                         <div class="flex gap-2 mb-4">
                             <input 
                                 type="text"
@@ -177,7 +217,7 @@
                                 <p class="text-sm">{{ exemplar.text }}</p>
                             </div>
                             <button 
-                                hx-delete="/api/exemplars/{{ exemplar.id }}"
+                                hx-delete="/api/exemplars/{{ current_account_id }}/{{ exemplar.id }}"
                                 hx-target="closest div"
                                 hx-swap="outerHTML"
                                 hx-confirm="Delete this exemplar?"
@@ -196,7 +236,7 @@
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h2 class="text-xl font-semibold mb-4">Knowledge Base Explorer</h2>
                     
-                    <form hx-get="/api/search-chunks" hx-target="#search-results" hx-trigger="submit">
+                    <form hx-get="/api/search-chunks/{{ current_account_id }}" hx-target="#search-results" hx-trigger="submit">
                         <div class="flex gap-2 mb-4">
                             <input 
                                 type="text"
@@ -210,7 +250,7 @@
                     </form>
                     
                     <div id="search-results" class="space-y-2 max-h-64 overflow-y-auto">
-                        <p class="text-gray-500 text-sm">Enter a search term to explore the knowledge base</p>
+                        <p class="text-gray-500 text-sm">Enter a search term to explore the knowledge base for <strong>{{ current_account.get('display_name', current_account_id) }}</strong></p>
                     </div>
                 </div>
 

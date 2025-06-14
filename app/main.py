@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from datetime import datetime
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -111,19 +112,30 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/")
-async def dashboard(request: Request):
-    """Main dashboard page."""
+async def dashboard(request: Request, account_id: Optional[str] = None):
+    """Main dashboard page with optional account selection."""
     try:
+        # Load all accounts
+        accounts = load_all_accounts()
+        
+        # If no account specified or invalid account, use first available
+        if not account_id or account_id not in accounts:
+            if accounts:
+                account_id = list(accounts.keys())[0]
+            else:
+                raise HTTPException(status_code=500, detail="No accounts configured")
+        
+        account = accounts[account_id]
+        
         # Get system status
         health_status = health_checker.check_health(deep=False)
-        recent_posts = activity_logger.get_recent_posts(limit=5)
+        recent_posts = activity_logger.get_recent_posts(limit=5, account_filter=account_id)
         daily_cost = cost_tracker.get_daily_cost()
-        success_rate = activity_logger.get_success_rate(hours=24)
+        success_rate = activity_logger.get_success_rate(hours=24, account_filter=account_id)
         
-        # Load persona and exemplars
-        from app.deps import get_persona, get_exemplars
-        persona = get_persona()
-        exemplars = get_exemplars()
+        # Get account-specific data
+        persona = account.get("persona", "")
+        exemplars = account.get("exemplars", [])
         
         # Get scheduler status
         from app.scheduler import get_scheduler_status
@@ -131,6 +143,9 @@ async def dashboard(request: Request):
         
         context = {
             "request": request,
+            "current_account_id": account_id,
+            "current_account": account,
+            "all_accounts": accounts,
             "health_status": health_status,
             "recent_posts": recent_posts,
             "daily_cost": daily_cost,
@@ -309,7 +324,7 @@ async def get_costs():
 
 @app.post("/api/persona")
 async def update_persona(request: Request):
-    """Update the bot's persona."""
+    """Update the bot's persona (global fallback)."""
     try:
         form = await request.form()
         new_persona = form.get("persona", "").strip()
@@ -326,7 +341,7 @@ async def update_persona(request: Request):
         persona_path = Path("data/persona.txt")
         persona_path.write_text(new_persona)
         
-        logger.info("Persona updated", length=len(new_persona))
+        logger.info("Global persona updated", length=len(new_persona))
         activity_logger.log_system_event("persona_updated", "User updated bot persona")
         
         return {"success": True, "message": "Persona updated successfully"}
@@ -338,9 +353,52 @@ async def update_persona(request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to update persona: {str(e)}")
 
 
+@app.post("/api/persona/{account_id}")
+async def update_account_persona(account_id: str, request: Request):
+    """Update a specific account's persona."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        form = await request.form()
+        new_persona = form.get("persona", "").strip()
+        
+        if not new_persona:
+            raise HTTPException(status_code=400, detail="Persona cannot be empty")
+        
+        # Validate content
+        from app.security import validate_user_input
+        if not validate_user_input(new_persona, "persona"):
+            raise HTTPException(status_code=400, detail="Persona contains inappropriate content")
+        
+        # Update account configuration
+        account["persona"] = new_persona
+        
+        # Save account configuration
+        from app.account_manager import get_account_manager
+        account_manager = get_account_manager()
+        success = account_manager.save_account(account)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save account configuration")
+        
+        logger.info("Account persona updated", account_id=account_id, length=len(new_persona))
+        activity_logger.log_system_event("persona_updated", f"User updated persona for account {account_id}")
+        
+        return {"success": True, "message": f"Persona updated for {account_id}"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update account persona", account_id=account_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update persona: {str(e)}")
+
+
 @app.post("/api/exemplars")
 async def add_exemplar(request: Request):
-    """Add a new exemplar tweet."""
+    """Add a new exemplar tweet (global fallback)."""
     try:
         form = await request.form()
         tweet_text = form.get("tweet_text", "").strip()
@@ -377,7 +435,7 @@ async def add_exemplar(request: Request):
         with open(exemplars_path, 'w') as f:
             json.dump(exemplars, f, indent=2)
         
-        logger.info("Exemplar added", id=new_id, text=tweet_text[:50])
+        logger.info("Global exemplar added", id=new_id, text=tweet_text[:50])
         activity_logger.log_system_event("exemplar_added", f"Added exemplar: {tweet_text[:50]}...")
         
         return HTMLResponse(f"""
@@ -403,9 +461,77 @@ async def add_exemplar(request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to add exemplar: {str(e)}")
 
 
+@app.post("/api/exemplars/{account_id}")
+async def add_account_exemplar(account_id: str, request: Request):
+    """Add a new exemplar tweet for a specific account."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        form = await request.form()
+        tweet_text = form.get("tweet_text", "").strip()
+        
+        if not tweet_text:
+            raise HTTPException(status_code=400, detail="Tweet text cannot be empty")
+        
+        # Validate content
+        from app.security import validate_user_input
+        if not validate_user_input(tweet_text, "exemplar"):
+            raise HTTPException(status_code=400, detail="Tweet contains inappropriate content")
+        
+        # Get existing exemplars from account
+        exemplars = account.get("exemplars", [])
+        
+        # Add new exemplar
+        new_id = max([e.get("id", 0) for e in exemplars], default=0) + 1
+        new_exemplar = {
+            "id": new_id,
+            "text": tweet_text,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        exemplars.append(new_exemplar)
+        account["exemplars"] = exemplars
+        
+        # Save account configuration
+        from app.account_manager import get_account_manager
+        account_manager = get_account_manager()
+        success = account_manager.save_account(account)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save account configuration")
+        
+        logger.info("Account exemplar added", account_id=account_id, id=new_id, text=tweet_text[:50])
+        activity_logger.log_system_event("exemplar_added", f"Added exemplar to {account_id}: {tweet_text[:50]}...")
+        
+        return HTMLResponse(f"""
+        <div class="flex items-start justify-between p-3 bg-gray-50 rounded border">
+            <div class="flex-1">
+                <p class="text-sm">{tweet_text}</p>
+            </div>
+            <button 
+                hx-delete="/api/exemplars/{account_id}/{new_id}"
+                hx-target="closest div"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this exemplar?"
+                class="ml-2 text-red-500 hover:text-red-700">
+                ×
+            </button>
+        </div>
+        """)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to add account exemplar", account_id=account_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to add exemplar: {str(e)}")
+
+
 @app.delete("/api/exemplars/{exemplar_id}")
 async def delete_exemplar(exemplar_id: int):
-    """Delete an exemplar tweet."""
+    """Delete an exemplar tweet (global fallback)."""
     try:
         import json
         exemplars_path = Path("data/exemplars.json")
@@ -423,7 +549,7 @@ async def delete_exemplar(exemplar_id: int):
         with open(exemplars_path, 'w') as f:
             json.dump(exemplars, f, indent=2)
         
-        logger.info("Exemplar deleted", id=exemplar_id)
+        logger.info("Global exemplar deleted", id=exemplar_id)
         activity_logger.log_system_event("exemplar_deleted", f"Deleted exemplar ID: {exemplar_id}")
         
         return {"success": True}
@@ -432,6 +558,42 @@ async def delete_exemplar(exemplar_id: int):
         raise
     except Exception as e:
         logger.error("Failed to delete exemplar", exemplar_id=exemplar_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete exemplar: {str(e)}")
+
+
+@app.delete("/api/exemplars/{account_id}/{exemplar_id}")
+async def delete_account_exemplar(account_id: str, exemplar_id: int):
+    """Delete an exemplar tweet from a specific account."""
+    try:
+        # Verify account exists
+        account = get_account(account_id)
+        if not account:
+            raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
+        
+        # Get existing exemplars from account
+        exemplars = account.get("exemplars", [])
+        
+        # Remove exemplar with matching ID
+        exemplars = [e for e in exemplars if e.get("id") != exemplar_id]
+        account["exemplars"] = exemplars
+        
+        # Save account configuration
+        from app.account_manager import get_account_manager
+        account_manager = get_account_manager()
+        success = account_manager.save_account(account)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save account configuration")
+        
+        logger.info("Account exemplar deleted", account_id=account_id, id=exemplar_id)
+        activity_logger.log_system_event("exemplar_deleted", f"Deleted exemplar ID {exemplar_id} from {account_id}")
+        
+        return {"success": True}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete account exemplar", account_id=account_id, exemplar_id=exemplar_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to delete exemplar: {str(e)}")
 
 

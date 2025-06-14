@@ -120,6 +120,7 @@ class ActivityLogger:
                 CREATE TABLE IF NOT EXISTS post_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    account_id TEXT,
                     tweet_text TEXT NOT NULL,
                     seed_chunk_hash TEXT,
                     status TEXT NOT NULL,
@@ -129,6 +130,14 @@ class ActivityLogger:
                     metadata TEXT
                 )
             """)
+            
+            # Add account_id column if it doesn't exist (for existing databases)
+            try:
+                conn.execute("ALTER TABLE post_history ADD COLUMN account_id TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
             
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS system_events (
@@ -146,20 +155,21 @@ class ActivityLogger:
                         status: str, twitter_id: Optional[str] = None,
                         error_message: Optional[str] = None,
                         generation_time_ms: Optional[int] = None,
-                        metadata: Optional[dict] = None):
+                        metadata: Optional[dict] = None,
+                        account_id: Optional[str] = None):
         """Log a tweet posting attempt."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 INSERT INTO post_history 
-                (tweet_text, seed_chunk_hash, status, twitter_id, error_message, 
+                (account_id, tweet_text, seed_chunk_hash, status, twitter_id, error_message, 
                  generation_time_ms, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (tweet_text, seed_chunk_hash, status, twitter_id, error_message,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (account_id, tweet_text, seed_chunk_hash, status, twitter_id, error_message,
                   generation_time_ms, json.dumps(metadata) if metadata else None))
             conn.commit()
         
         logger.info("Post attempt logged", 
-                   status=status, twitter_id=twitter_id, seed_chunk_hash=seed_chunk_hash)
+                   account_id=account_id, status=status, twitter_id=twitter_id, seed_chunk_hash=seed_chunk_hash)
     
     def log_system_event(self, event_type: str, message: str, level: str = "INFO",
                         metadata: Optional[dict] = None):
@@ -174,15 +184,23 @@ class ActivityLogger:
         logger.info("System event logged", 
                    event_type=event_type, level=level, message=message)
     
-    def get_recent_posts(self, limit: int = 50) -> List[dict]:
-        """Get recent post history."""
+    def get_recent_posts(self, limit: int = 50, account_filter: Optional[str] = None) -> List[dict]:
+        """Get recent post history, optionally filtered by account."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.execute("""
-                SELECT * FROM post_history 
-                ORDER BY timestamp DESC 
-                LIMIT ?
-            """, (limit,))
+            if account_filter:
+                cursor = conn.execute("""
+                    SELECT * FROM post_history 
+                    WHERE account_id = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (account_filter, limit))
+            else:
+                cursor = conn.execute("""
+                    SELECT * FROM post_history 
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (limit,))
             return [dict(row) for row in cursor.fetchall()]
     
     def get_recent_seed_hashes(self, limit: int = 50) -> List[str]:
@@ -196,27 +214,45 @@ class ActivityLogger:
             """, (limit,))
             return [row[0] for row in cursor.fetchall() if row[0]]
     
-    def get_success_rate(self, hours: int = 24) -> float:
-        """Get posting success rate for the last N hours."""
+    def get_success_rate(self, hours: int = 24, account_filter: Optional[str] = None) -> float:
+        """Get posting success rate for the last N hours, optionally filtered by account."""
         cutoff_time = datetime.now() - timedelta(hours=hours)
         
         with sqlite3.connect(self.db_path) as conn:
-            # Total attempts
-            cursor = conn.execute("""
-                SELECT COUNT(*) FROM post_history 
-                WHERE timestamp >= ?
-            """, (cutoff_time,))
-            total = cursor.fetchone()[0]
-            
-            if total == 0:
-                return 1.0
-            
-            # Successful posts
-            cursor = conn.execute("""
-                SELECT COUNT(*) FROM post_history 
-                WHERE timestamp >= ? AND status = 'success'
-            """, (cutoff_time,))
-            successful = cursor.fetchone()[0]
+            if account_filter:
+                # Total attempts for account
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM post_history 
+                    WHERE timestamp >= ? AND account_id = ?
+                """, (cutoff_time, account_filter))
+                total = cursor.fetchone()[0]
+                
+                if total == 0:
+                    return 1.0
+                
+                # Successful posts for account
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM post_history 
+                    WHERE timestamp >= ? AND account_id = ? AND status = 'success'
+                """, (cutoff_time, account_filter))
+                successful = cursor.fetchone()[0]
+            else:
+                # Total attempts
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM post_history 
+                    WHERE timestamp >= ?
+                """, (cutoff_time,))
+                total = cursor.fetchone()[0]
+                
+                if total == 0:
+                    return 1.0
+                
+                # Successful posts
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM post_history 
+                    WHERE timestamp >= ? AND status = 'success'
+                """, (cutoff_time,))
+                successful = cursor.fetchone()[0]
             
             return successful / total
 
