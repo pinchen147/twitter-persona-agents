@@ -115,10 +115,19 @@ class VectorSearcher:
         """Find chunks similar to the query text using vector search."""
         try:
             # Generate embedding for query
-            logger.debug("Generating embedding for similarity search", query_length=len(query_text))
+            # Truncate if too long for embedding model (8192 token limit ≈ 6000 chars)
+            if len(query_text) > 6000:
+                truncated_query = query_text[:6000]
+                logger.warning("Query text truncated for embedding", 
+                             original_length=len(query_text), 
+                             truncated_length=len(truncated_query))
+            else:
+                truncated_query = query_text
+                
+            logger.debug("Generating embedding for similarity search", query_length=len(truncated_query))
             
             embedding_response = self.openai_client.embeddings.create(
-                input=query_text,
+                input=truncated_query,
                 model=self.embedding_model
             )
             query_embedding = embedding_response.data[0].embedding
@@ -181,8 +190,17 @@ class VectorSearcher:
         """Search chunks by text content (for UI search functionality)."""
         try:
             # For text search, we'll use embedding-based search
+            # Truncate if too long for embedding model (8192 token limit ≈ 6000 chars)
+            if len(query) > 6000:
+                truncated_query = query[:6000]
+                logger.warning("Search query truncated for embedding", 
+                             original_length=len(query), 
+                             truncated_length=len(truncated_query))
+            else:
+                truncated_query = query
+                
             embedding_response = self.openai_client.embeddings.create(
-                input=query,
+                input=truncated_query,
                 model=self.embedding_model
             )
             query_embedding = embedding_response.data[0].embedding
