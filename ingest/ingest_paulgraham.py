@@ -223,12 +223,14 @@ class PaulGrahamVectorDB:
             embeddings.append(essay["embedding"])
             documents.append(essay["text"])
             metadatas.append({
-                "title": essay["title"],
+                "source_title": essay["title"],           # Standard field name
+                "chunk_index": 0,                         # Full essays are chunk 0
+                "chunk_hash": essay["essay_hash"],        # Standard field name
                 "word_count": essay["word_count"],
-                "essay_hash": essay["essay_hash"],
                 "file_path": essay["file_path"],
-                "type": "full_essay",
-                "author": "paul_graham"
+                "start_word_idx": 0,                      # Standard chunk fields
+                "end_word_idx": essay["word_count"],
+                "type": "full_essay"                      # Optional: to distinguish from chunked content
             })
         
         try:
@@ -264,7 +266,7 @@ class PaulGrahamVectorDB:
                 total_words = 0
                 
                 for metadata in results["metadatas"]:
-                    titles.append(metadata["title"])
+                    titles.append(metadata["source_title"])  # Updated to use standard field name
                     total_words += metadata["word_count"]
                 
                 return {
