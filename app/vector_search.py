@@ -44,16 +44,25 @@ class VectorSearcher:
             self.collection = self.client.get_collection(name=self.collection_name)
             logger.debug("Connected to vector collection", name=self.collection_name)
         except Exception as e:
-            logger.error("Failed to get vector collection", error=str(e))
-            raise VectorDBError(f"Cannot access collection {self.collection_name}: {str(e)}")
+            logger.error("Failed to get vector collection", 
+                        collection_name=self.collection_name, 
+                        error=str(e))
+            raise VectorDBError(f"Cannot access collection {self.collection_name}: {str(e)}. Make sure the collection exists and has been populated with data.")
     
     def get_random_seed_chunk(self, exclude_hashes: Optional[List[str]] = None) -> Dict[str, any]:
         """Get a random chunk to use as generation seed."""
         try:
+            # Defensive type checking for exclude_hashes
+            if exclude_hashes is not None and not isinstance(exclude_hashes, list):
+                logger.warning("exclude_hashes is not a list, converting to empty list", 
+                             type_received=type(exclude_hashes).__name__, 
+                             value=exclude_hashes)
+                exclude_hashes = []
+            
             # Get total count
             total_count = self.collection.count()
             if total_count == 0:
-                raise VectorDBError("No chunks available in vector database")
+                raise VectorDBError(f"No chunks available in vector database collection '{self.collection_name}'. Please run the ingestion process to populate the database.")
             
             max_attempts = 10
             for attempt in range(max_attempts):

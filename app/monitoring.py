@@ -127,7 +127,6 @@ class ActivityLogger:
                     twitter_id TEXT,
                     error_message TEXT,
                     generation_time_ms INTEGER,
-                    account_id TEXT,
                     metadata TEXT
                 )
             """)
@@ -206,14 +205,35 @@ class ActivityLogger:
     
     def get_recent_seed_hashes(self, limit: int = 50) -> List[str]:
         """Get seed chunk hashes from recent posts for deduplication."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
-                SELECT seed_chunk_hash FROM post_history 
-                WHERE status = 'success' AND seed_chunk_hash IS NOT NULL
-                ORDER BY timestamp DESC 
-                LIMIT ?
-            """, (limit,))
-            return [row[0] for row in cursor.fetchall() if row[0]]
+        try:
+            # Ensure database exists
+            self._init_db()
+            
+            with sqlite3.connect(self.db_path) as conn:
+                # Check if table exists and has data
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM sqlite_master 
+                    WHERE type='table' AND name='post_history'
+                """)
+                table_exists = cursor.fetchone()[0] > 0
+                
+                if not table_exists:
+                    logger.debug("post_history table does not exist, returning empty list")
+                    return []
+                
+                cursor = conn.execute("""
+                    SELECT seed_chunk_hash FROM post_history 
+                    WHERE status = 'success' AND seed_chunk_hash IS NOT NULL
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                """, (limit,))
+                results = cursor.fetchall()
+                hashes = [row[0] for row in results if row[0]]
+                logger.debug("Retrieved recent seed hashes", count=len(hashes), limit=limit)
+                return hashes
+        except Exception as e:
+            logger.error("Failed to get recent seed hashes", error=str(e), limit=limit)
+            return []  # Always return empty list on error
     
     def get_success_rate(self, hours: int = 24, account_filter: Optional[str] = None) -> float:
         """Get posting success rate for the last N hours, optionally filtered by account."""
