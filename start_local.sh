@@ -63,7 +63,7 @@ else
 fi
 
 # Set environment variables
-export PYTHONPATH=/Users/leojiang/Desktop/workspace/zenkink-twitter-agent
+export PYTHONPATH=/Users/leojiang/Desktop/workspace/twitter-persona-agents
 export ENVIRONMENT=development
 
 # Start the application
