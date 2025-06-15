@@ -49,74 +49,43 @@ class VectorSearcher:
                         error=str(e))
             raise VectorDBError(f"Cannot access collection {self.collection_name}: {str(e)}. Make sure the collection exists and has been populated with data.")
     
-    def get_random_seed_chunk(self, exclude_hashes: Optional[List[str]] = None) -> Dict[str, any]:
+    def get_random_seed_chunk(self) -> Dict[str, any]:
         """Get a random chunk to use as generation seed."""
         try:
-            # Defensive type checking for exclude_hashes
-            if exclude_hashes is not None and not isinstance(exclude_hashes, list):
-                logger.warning("exclude_hashes is not a list, converting to empty list", 
-                             type_received=type(exclude_hashes).__name__, 
-                             value=exclude_hashes)
-                exclude_hashes = []
-            
             # Get total count
             total_count = self.collection.count()
             if total_count == 0:
                 raise VectorDBError(f"No chunks available in vector database collection '{self.collection_name}'. Please run the ingestion process to populate the database.")
             
-            max_attempts = 10
-            for attempt in range(max_attempts):
-                # Get random offset
-                random_offset = random.randint(0, total_count - 1)
-                
-                # Get chunk at random position
-                result = self.collection.get(
-                    limit=1,
-                    offset=random_offset,
-                    include=["documents", "metadatas"]
-                )
-                
-                if not result["documents"]:
-                    continue
-                
-                chunk = {
-                    "id": result["ids"][0],
-                    "text": result["documents"][0],
-                    "metadata": result["metadatas"][0]
-                }
-                
-                # Check if we should exclude this chunk (for deduplication)
-                chunk_hash = chunk["metadata"].get("chunk_hash")
-                if exclude_hashes and chunk_hash in exclude_hashes:
-                    logger.debug("Skipping recently used chunk", 
-                               chunk_hash=chunk_hash, 
-                               attempt=attempt + 1)
-                    continue
-                
-                logger.info("Selected random seed chunk", 
-                           chunk_id=chunk["id"],
-                           source=chunk["metadata"].get("source_title"),
-                           chunk_hash=chunk_hash)
-                
-                return chunk
-            
-            # If we couldn't find a non-excluded chunk, just return a random one
-            logger.warning("Could not find non-excluded chunk, using random chunk anyway")
+            # Get random offset
             random_offset = random.randint(0, total_count - 1)
+            
+            # Get chunk at random position
             result = self.collection.get(
                 limit=1,
                 offset=random_offset,
                 include=["documents", "metadatas"]
             )
             
-            return {
+            if not result["documents"]:
+                raise VectorDBError("No document found at random offset")
+            
+            chunk = {
                 "id": result["ids"][0],
                 "text": result["documents"][0],
                 "metadata": result["metadatas"][0]
             }
             
+            chunk_hash = chunk["metadata"].get("chunk_hash")
+            logger.info("Selected random seed chunk", 
+                       chunk_id=chunk["id"],
+                       source=chunk["metadata"].get("source_title"),
+                       chunk_hash=chunk_hash)
+            
+            return chunk
+            
         except Exception as e:
-            logger.error("Failed to get random seed chunk", error=str(e))
+            logger.exception("Failed to get random seed chunk", error=str(e))
             raise VectorDBError(f"Failed to get random seed: {str(e)}")
     
     def find_similar_chunks(self, query_text: str, n_results: int = 5, 
@@ -192,7 +161,7 @@ class VectorSearcher:
             return similar_chunks
             
         except Exception as e:
-            logger.error("Similarity search failed", error=str(e))
+            logger.exception("Similarity search failed", error=str(e))
             raise VectorDBError(f"Similarity search failed: {str(e)}")
     
     def search_chunks_by_text(self, query: str, limit: int = 10) -> List[Dict[str, any]]:
@@ -249,7 +218,7 @@ class VectorSearcher:
             return search_results
             
         except Exception as e:
-            logger.error("Text search failed", query=query, error=str(e))
+            logger.exception("Text search failed", query=query, error=str(e))
             raise VectorDBError(f"Text search failed: {str(e)}")
     
     def get_context_for_generation(self, seed_chunk: Dict[str, any], 
@@ -274,7 +243,7 @@ class VectorSearcher:
             return context_chunks
             
         except Exception as e:
-            logger.error("Failed to get context for generation", 
+            logger.exception("Failed to get context for generation", 
                         seed_chunk_id=seed_chunk.get("id"),
                         error=str(e))
             raise VectorDBError(f"Failed to get generation context: {str(e)}")
@@ -323,23 +292,17 @@ class VectorSearcher:
             }
             
         except Exception as e:
-            logger.error("Failed to get collection info", error=str(e))
+            logger.exception("Failed to get collection info", error=str(e))
             raise VectorDBError(f"Failed to get collection info: {str(e)}")
 
 
 # Convenience functions for use in other modules
-def get_random_seed_with_deduplication(account_id: str = None) -> Tuple[Dict[str, any], str]:
-    """Get random seed chunk with deduplication check."""
+def get_random_seed(account_id: str = None) -> Tuple[Dict[str, any], str]:
+    """Get random seed chunk."""
     searcher = VectorSearcher(account_id=account_id)
-    activity_logger = ActivityLogger()
-    
-    # Get recent seed hashes for deduplication
-    config = get_config()
-    lookback_count = config.get("deduplication", {}).get("recent_posts_lookback", 50)
-    recent_hashes = activity_logger.get_recent_seed_hashes(limit=lookback_count)
     
     # Get random seed chunk
-    seed_chunk = searcher.get_random_seed_chunk(exclude_hashes=recent_hashes)
+    seed_chunk = searcher.get_random_seed_chunk()
     seed_hash = seed_chunk["metadata"].get("chunk_hash", "unknown")
     
     return seed_chunk, seed_hash

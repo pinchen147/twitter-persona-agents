@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader
 from openai import OpenAI
 
 from app.deps import get_config, get_openai_client, get_persona, get_exemplars
-from app.vector_search import get_random_seed_with_deduplication, get_generation_context
+from app.vector_search import get_random_seed, get_generation_context
 from app.monitoring import ActivityLogger
 from app.exceptions import GenerationError, OpenAIError
 
@@ -228,7 +228,7 @@ class TweetGenerator:
             
             # Step 1: Get random seed chunk with deduplication
             logger.info("Starting tweet generation", account_id=self.account_id)
-            seed_chunk, seed_hash = get_random_seed_with_deduplication(account_id=self.account_id)
+            seed_chunk, seed_hash = get_random_seed(account_id=self.account_id)
             
             # Step 2: Get context chunks
             context_chunks = get_generation_context(seed_chunk, account_id=self.account_id)
