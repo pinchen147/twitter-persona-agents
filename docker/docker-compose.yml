@@ -1,6 +1,6 @@
 services:
-  zenkink-bot:
-    container_name: zenkink-twitter-bot
+  twitter-persona-agents:
+    container_name: twitter-persona-agents-app
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
@@ -17,7 +17,7 @@ services:
     depends_on:
       - redis
     networks:
-      - zenkink-network
+      - twitter-persona-agents-network
 
   redis:
     image: redis:7-alpine
@@ -26,11 +26,11 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - zenkink-network
+      - twitter-persona-agents-network
 
 volumes:
   redis_data:
 
 networks:
-  zenkink-network:
+  twitter-persona-agents-network:
     driver: bridge

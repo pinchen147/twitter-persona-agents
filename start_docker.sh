@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Zen Kink Bot - Docker Startup Script
+# Twitter Persona Agents - Docker Startup Script
 # This script builds/updates the Docker image and starts the application with Redis
 
 set -e  # Exit on any error
-export COMPOSE_PROJECT_NAME="zenkink-twitter-bot"
+export COMPOSE_PROJECT_NAME="twitter-persona-agents"
 
-echo "🐳 Starting Zen Kink Bot with Docker..."
+echo "🐳 Starting Twitter Persona Agents with Docker..."
 
 # Check if .env file exists (in root or config directory)
 if [ ! -f .env ] && [ ! -f config/.env ]; then

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Zen Kink Bot - Local Development Startup Script
+# Twitter Persona Agents - Local Development Startup Script
 # This script sets up and starts the application locally with all dependencies
 
 set -e  # Exit on any error
 
-echo "🧘 Starting Zen Kink Bot locally..."
+echo "🧘 Starting Twitter Persona Agents locally..."
 
 # Check if .env file exists (in root or config directory)
 if [ ! -f .env ] && [ ! -f config/.env ]; then
@@ -20,19 +20,13 @@ if [ ! -f .env ] && [ -f config/.env ]; then
     cp config/.env .env
 fi
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "🐍 Creating virtual environment..."
-    python3 -m venv venv
-fi
-
 # Activate virtual environment
 echo "🔧 Activating virtual environment..."
 source venv/bin/activate
 
-# # Install/update dependencies
-# echo "📦 Installing dependencies..."
-# pip install -r requirements.txt
+# Install/update dependencies
+echo "📦 Installing dependencies..."
+pip install -r requirements.txt
 
 # # Check if data directory exists
 # if [ ! -d "data" ]; then
@@ -63,11 +57,11 @@ else
 fi
 
 # Set environment variables
-export PYTHONPATH=/Users/leojiang/Desktop/workspace/zenkink-twitter-agent
+export PYTHONPATH=/Users/leojiang/Desktop/workspace/twitter-persona-agents
 export ENVIRONMENT=development
 
 # Start the application
-echo "🚀 Starting Zen Kink Bot..."
+echo "🚀 Starting Twitter Persona Agents..."
 echo ""
 echo "🎛️  Control Panel: http://localhost:8582"
 echo "🔍 Health Check:  http://localhost:8582/health"

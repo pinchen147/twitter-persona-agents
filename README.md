@@ -49,7 +49,7 @@ The system is built on a core philosophy of **simplicity and ruthless pragmatism
 ### 1. Clone and Setup
 ```bash
 git clone <your-repo-url>
-cd zenkink-twitter-agent
+cd twitter-persona-agents
 
 # The virtual environment 'venv' is already created for you!
 # Just activate it:
@@ -289,25 +289,25 @@ GET /api/search-chunks/{account_id}?query=presence
 ### Docker Production
 ```bash
 # Build production image
-docker build -f docker/Dockerfile -t zenkink-bot .
+docker build -f docker/Dockerfile -t twitter-persona-agents .
 
 # Run with environment variables
-docker run -d --name zenkink-bot \
+docker run -d --name twitter-persona-agents \
   -p 8000:8000 \
   --env-file .env \
   -v $(pwd)/data:/app/data \
-  zenkink-bot
+  twitter-persona-agents
 ```
 
 ### Google Cloud Run
 ```bash
 # Build and push to Container Registry
-docker build -f docker/Dockerfile -t gcr.io/PROJECT-ID/zenkink-bot .
-docker push gcr.io/PROJECT-ID/zenkink-bot
+docker build -f docker/Dockerfile -t gcr.io/PROJECT-ID/twitter-persona-agents .
+docker push gcr.io/PROJECT-ID/twitter-persona-agents
 
 # Deploy to Cloud Run
-gcloud run deploy zenkink-bot \
-  --image gcr.io/PROJECT-ID/zenkink-bot \
+gcloud run deploy twitter-persona-agents \
+  --image gcr.io/PROJECT-ID/twitter-persona-agents \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated
