@@ -1,4 +1,40 @@
-"""Scheduling system for automated tweet posting."""
+"""
+Scheduling system for automated multi-account tweet posting with catch-up capabilities.
+
+This module implements the core automation layer that ensures consistent tweet posting
+across all configured accounts without manual intervention. It uses APScheduler for
+reliable task scheduling and includes sophisticated catch-up logic for missed posts.
+
+Key Features:
+- Automated posting at configurable intervals (default: every 6 hours)
+- Multi-account support with parallel posting
+- Catch-up system for missed posting windows during downtime
+- Health monitoring with automatic issue detection
+- Graceful error handling and retry logic
+- Emergency pause/resume capabilities
+
+Architecture:
+- Uses AsyncIOScheduler for non-blocking scheduled tasks
+- Main posting job runs every N hours and posts to ALL accounts
+- Catch-up detection runs on startup to handle missed windows
+- Each account posts independently with isolated error handling
+- Failed posts don't affect other accounts
+
+Catch-up Logic:
+- On startup, checks each account's last post time
+- Calculates missed posting windows based on interval
+- Schedules catch-up posts with 30-second spacing
+- Limits catch-up posts to prevent timeline flooding
+- Grace period prevents false positives during short downtimes
+
+Configuration (config.yaml):
+scheduler:
+  enabled: true
+  post_interval_hours: 6  # 4 posts per day
+  catch_up_enabled: true
+  max_catch_up_posts: 3
+  catch_up_grace_period_hours: 1
+"""
 
 import asyncio
 import time

@@ -1,4 +1,33 @@
-"""Vector search operations for the Zen Kink Bot."""
+"""
+Vector search functionality - Semantic knowledge retrieval system.
+
+This module manages the interaction with the ChromaDB vector database to retrieve
+relevant philosophical content for tweet generation. It implements semantic search
+using embeddings and includes deduplication logic to ensure content variety.
+
+Key Features:
+- Random seed selection with recent-post deduplication
+- k-NN semantic similarity search for context building
+- Account-specific vector collections for isolated knowledge bases
+- Hash-based tracking to avoid repetitive content
+- Configurable similarity thresholds
+
+Architecture:
+- Uses ChromaDB as the vector store (local, persistent)
+- Embeddings generated via OpenAI text-embedding-3-small
+- Each account can have its own collection or share knowledge
+- Recent post hashes tracked to prevent duplication
+
+Core Functions:
+- get_random_seed(): Select random chunk avoiding recent topics
+- get_generation_context(): Find related chunks for richer content
+- search_similar_chunks(): Direct similarity search for exploration
+- is_chunk_recent(): Check if content was recently used
+
+The vector search ensures that each generated tweet draws from diverse
+philosophical sources while maintaining thematic coherence through
+semantic similarity matching.
+"""
 
 import random
 from typing import List, Dict, Optional, Tuple

@@ -1,4 +1,48 @@
-"""Account management for multi-account Twitter bot."""
+"""
+Account management system for coordinating multiple Twitter bot personas.
+
+This module implements the multi-account infrastructure that allows the bot system to manage
+multiple Twitter accounts, each with its own unique personality, knowledge base, and credentials.
+
+Key Features:
+- Dynamic account loading from JSON configuration files
+- Account configuration validation and sanitization  
+- Credential management with security checks
+- Caching with automatic reload on file changes
+- Thread-safe singleton pattern for global access
+
+Architecture:
+- Each account is defined by a JSON file in the accounts/ directory
+- Account files contain: persona, exemplars, credentials, vector collection name
+- Accounts are loaded on-demand and cached for performance
+- File modification timestamps trigger automatic cache invalidation
+
+Account Configuration Structure:
+{
+    "account_id": "unique_identifier",
+    "display_name": "Human-readable name",
+    "persona": "Personality description for AI prompts",
+    "exemplars": [{"text": "Example tweet"}],
+    "vector_collection": "knowledge_base_name",
+    "twitter_credentials": {
+        "api_key": "...",
+        "api_secret": "...",
+        "access_token": "...",
+        "access_token_secret": "...",
+        "bearer_token": "..."
+    }
+}
+
+Usage:
+    # Get all accounts
+    accounts = load_all_accounts()
+    
+    # Get specific account
+    account = get_account("zenkink")
+    
+    # Validate configuration
+    is_valid = validate_account_config(account_dict)
+"""
 
 import json
 import os

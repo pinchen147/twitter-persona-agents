@@ -1,4 +1,17 @@
-# Production Dockerfile
+# Production Dockerfile for Twitter Persona Agents
+# 
+# This Dockerfile creates a minimal production-ready container for the bot system.
+# It uses Python 3.11 slim base image for optimal size/performance balance.
+#
+# Features:
+# - Multi-stage build optimization (if needed in future)
+# - Non-root user for security
+# - Health checks for container orchestration
+# - Minimal attack surface with only required dependencies
+#
+# Build: docker build -f docker/Dockerfile -t twitter-persona-agents .
+# Run: docker run -p 8000:8000 --env-file .env twitter-persona-agents
+
 FROM python:3.11-slim
 
 # Set working directory

@@ -1,4 +1,28 @@
-"""PDF ingestion and text extraction for the Zen Kink Bot."""
+"""
+PDF ingestion module - Document processing and text extraction.
+
+This module handles the first stage of the knowledge base pipeline: extracting
+clean, usable text from PDF books. It implements sophisticated cleaning algorithms
+to remove PDF artifacts while preserving the philosophical content.
+
+Key Features:
+- Robust PDF text extraction using pdfplumber
+- Intelligent artifact removal (headers, footers, page numbers)
+- OCR error correction and formatting fixes
+- Minimum content validation
+- File hash tracking for change detection
+
+Cleaning Process:
+1. Extract raw text from each PDF page
+2. Detect and remove repeated headers/footers
+3. Filter out page numbers and short fragments
+4. Fix common OCR/extraction issues
+5. Normalize whitespace and formatting
+
+The processor ensures that only high-quality, readable text enters the
+embedding pipeline, which is crucial for generating coherent tweets.
+Books are processed from data/source_material/ directory.
+"""
 
 import re
 import hashlib

@@ -1,3 +1,20 @@
+{# 
+Base prompt template for tweet generation.
+
+This Jinja2 template constructs the main prompt sent to the AI model for tweet generation.
+It combines three key elements:
+1. Persona: The account's personality and voice characteristics
+2. Context chunks: Philosophical content from the knowledge base
+3. Exemplars: Example tweets that demonstrate the desired style
+
+Variables:
+- persona: String containing the bot's personality description
+- context_chunks: List of text chunks from vector search
+- exemplars: List of example tweets with 'text' field
+
+The prompt guides the AI to synthesize philosophical insights while maintaining
+the account's unique voice and adhering to Twitter's constraints.
+#}
 {{ persona }}
 
 Based on the following context from teachings on presence and shadow work, write a tweet that embodies this wisdom in your voice.

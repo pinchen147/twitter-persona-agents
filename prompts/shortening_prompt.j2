@@ -1,4 +1,20 @@
-The following tweet is too long ({{ current_length }} characters). Please shorten it to exactly {{ target_length }} characters or fewer while preserving its core message and impact.
+{#
+Tweet shortening prompt template.
+
+This template is used when a generated tweet exceeds Twitter's character limit.
+It instructs the AI to intelligently reduce the length while preserving the
+core message and philosophical insight.
+
+Variables:
+- tweet_text: The original tweet that's too long
+- current_length: Current character count
+- target_length: Maximum allowed length (usually 270 to leave buffer)
+
+The AI is guided to maintain meaning while achieving brevity through
+techniques like removing redundancy, simplifying language, or focusing
+on the most essential point.
+#}
+The following tweet is {{ current_length }} characters, but needs to be {{ target_length }} characters or less.
 
 Original tweet:
 "{{ tweet_text }}"

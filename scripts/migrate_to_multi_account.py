@@ -1,12 +1,30 @@
 #!/usr/bin/env python3
 """
-Migration script to convert single-account setup to multi-account system.
+Migration script - Convert single-account to multi-account system.
 
-This script:
-1. Takes current Twitter credentials from environment and adds them to zenkink.json
-2. Validates the account configuration
-3. Tests the account setup
-4. Provides instructions for next steps
+This utility helps users migrate from the original single-account bot setup
+to the new multi-account architecture. It automates the conversion process
+while preserving existing configurations and credentials.
+
+Migration Process:
+1. Load Twitter credentials from environment variables
+2. Create/update zenkink.json account configuration
+3. Validate the migrated configuration
+4. Test Twitter API connection
+5. Provide next steps for adding more accounts
+
+Key Features:
+- Preserves existing credentials and settings
+- Validates configuration before saving
+- Tests Twitter connection after migration
+- Provides clear instructions for multi-account setup
+- Backward compatible with existing deployments
+
+Usage:
+    python scripts/migrate_to_multi_account.py
+
+The script is idempotent - running it multiple times is safe and will
+verify the existing migration status.
 """
 
 import json

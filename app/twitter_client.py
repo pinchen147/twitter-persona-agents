@@ -1,4 +1,33 @@
-"""Twitter API client for the Zen Kink Bot."""
+"""
+Twitter API client - Platform integration and posting management.
+
+This module handles all interactions with the Twitter API v2, providing a robust
+interface for posting tweets, retrieving account information, and managing rate limits.
+It supports multi-account operations with account-specific credentials.
+
+Key Features:
+- Twitter API v2 integration using Tweepy
+- Account-specific client instances
+- Comprehensive error handling with retry logic
+- Rate limit management and tracking
+- Test mode for development without posting
+- Tweet validation and metrics retrieval
+
+Architecture:
+- Uses Tweepy for Twitter API interactions
+- Each account gets its own authenticated client
+- Credentials loaded from account JSON files
+- Built-in rate limiting (1 minute between posts)
+
+Error Handling:
+- TooManyRequests: Rate limit tracking and waiting
+- Forbidden: Content policy violations
+- BadRequest: Invalid tweet format
+- Unauthorized: Authentication failures
+
+The module ensures reliable Twitter posting with proper error handling,
+rate limit compliance, and comprehensive logging for debugging.
+"""
 
 import time
 from typing import Dict, List, Optional

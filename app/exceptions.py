@@ -1,4 +1,32 @@
-"""Custom exception classes for the Zen Kink Bot."""
+"""
+Custom exception hierarchy - Structured error handling system.
+
+This module defines a comprehensive exception hierarchy that enables
+precise error handling throughout the application. Each exception type
+corresponds to a specific failure mode, allowing for targeted recovery
+strategies and meaningful error messages.
+
+Exception Hierarchy:
+- ZenKinkBotException: Base for all application errors
+  - ConfigurationError: Missing/invalid configuration
+  - APIError: External API failures
+    - OpenAIError: OpenAI API issues
+    - TwitterError: Twitter API issues
+  - ContentFilterError: Content safety violations
+  - CostLimitError: Budget exceeded
+  - VectorDBError: Database operations
+  - GenerationError: Tweet generation failures
+
+Usage enables specific error handling:
+    try:
+        post_tweet()
+    except TwitterError:
+        # Handle Twitter-specific issues
+    except CostLimitError:
+        # Trigger emergency stop
+    except ZenKinkBotException:
+        # Handle any bot error
+"""
 
 class ZenKinkBotException(Exception):
     """Base exception for all bot-related errors."""

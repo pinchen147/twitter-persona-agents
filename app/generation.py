@@ -1,4 +1,39 @@
-"""Tweet generation engine for the Zen Kink Bot."""
+"""
+Tweet generation engine - Core AI-powered content creation system.
+
+This module implements the sophisticated tweet generation pipeline that creates
+philosophical content by synthesizing knowledge from ingested books with account-specific
+personas and writing styles. It supports both GPT-4 and o3 reasoning models.
+
+Key Features:
+- Context-aware generation using vector similarity search
+- Account-specific personas and exemplar tweets for style consistency
+- Automatic tweet shortening to fit Twitter's character limit
+- Support for o3 reasoning models with Responses API
+- Content safety filtering before posting
+- Deduplication to avoid repetitive content
+
+Generation Pipeline:
+1. Random Seed Selection: Choose a knowledge chunk avoiding recent topics
+2. Context Retrieval: Find semantically related chunks via k-NN search
+3. Prompt Construction: Combine persona + context + exemplars using Jinja2
+4. AI Generation: Call OpenAI (GPT-4 or o3) to create tweet
+5. Length Validation: Shorten if needed while preserving message
+6. Safety Check: Filter inappropriate content
+7. Post to Twitter: Send via account-specific credentials
+
+Model Support:
+- GPT-4/GPT-4.1: Fast creative generation for regular tweets
+- o3/o3-mini: Advanced reasoning for complex philosophical insights
+- Automatic API selection based on model type
+- Cost tracking for both token types (standard + reasoning)
+
+Configuration:
+- model: Primary generation model (gpt-4.1 or o3)
+- shortening_model: Model for tweet shortening (gpt-4.1)
+- temperature: Creativity level (0.8 default)
+- character_limit: Twitter limit (280)
+"""
 
 import time
 from pathlib import Path

@@ -1,4 +1,31 @@
-"""Dependency injection for the FastAPI application."""
+"""
+Dependency injection system - Centralized resource management.
+
+This module provides a centralized dependency injection system that manages
+all external resources and configuration for the application. It ensures
+consistent access to APIs, databases, and configuration across all modules.
+
+Key Dependencies:
+- Configuration: YAML-based settings management
+- OpenAI Client: API access for generation and embeddings
+- Twitter Client: Account-specific Twitter API access
+- Vector Database: ChromaDB client for knowledge storage
+- Account Data: Personas, exemplars, and settings
+
+Features:
+- Environment variable loading from config/.env
+- Account-specific resource isolation
+- Backward compatibility with single-account setup
+- Graceful fallbacks for missing configurations
+- Validation of required credentials
+
+The dependency system enables:
+- Clean separation of concerns
+- Easy testing with mock dependencies
+- Multi-account support with isolated resources
+- Configuration validation at startup
+- Centralized error handling for missing configs
+"""
 
 import os
 from pathlib import Path

@@ -1,4 +1,35 @@
-"""Monitoring, logging, and metrics for the Zen Kink Bot."""
+"""
+Monitoring and observability system - Comprehensive tracking and health management.
+
+This module provides the core monitoring infrastructure for the bot system, tracking
+costs, activity, performance metrics, and system health. It uses SQLite for 
+persistent storage and provides real-time metrics for the dashboard.
+
+Key Components:
+1. CostTracker: Monitors API usage costs with daily limits and emergency stops
+2. ActivityLogger: Records all tweet attempts, system events, and errors
+3. HealthChecker: Validates system components and external dependencies
+
+Features:
+- Real-time cost tracking with configurable daily limits
+- Comprehensive activity logging with SQLite persistence
+- Success rate calculations and performance metrics
+- Emergency stop triggers based on cost/error thresholds
+- Account-specific tracking for multi-account support
+- Automated database backups and rotation
+
+Database Schema:
+- post_attempts: Tweet generation/posting history
+- system_events: Important system activities
+- api_costs: Detailed cost breakdown by service
+
+The monitoring system enables operators to:
+- Track spending and prevent cost overruns
+- Analyze posting patterns and success rates
+- Debug issues with detailed logs
+- Monitor system health proactively
+- Generate reports for optimization
+"""
 
 import json
 import sqlite3

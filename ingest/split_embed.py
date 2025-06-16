@@ -1,4 +1,32 @@
-"""Text chunking and embedding generation for the Zen Kink Bot."""
+"""
+Text chunking and embedding pipeline - Knowledge base construction system.
+
+This module implements the complete data ingestion pipeline that transforms PDF books
+into searchable vector embeddings. It's the foundation of the bot's knowledge base,
+enabling semantic search and context-aware tweet generation.
+
+Pipeline Stages:
+1. PDF Processing: Extract clean text from philosophical books
+2. Text Chunking: Split into large, context-rich segments (1500 words)
+3. Embedding Generation: Create vector representations via OpenAI
+4. Vector Storage: Persist in ChromaDB for retrieval
+
+Key Features:
+- Large chunk sizes preserve philosophical context
+- Overlapping chunks ensure concept continuity
+- Hash-based deduplication prevents redundancy
+- Batch processing for efficiency
+- Cost tracking for OpenAI API calls
+
+Architecture:
+- TextChunker: Creates overlapping text segments
+- EmbeddingGenerator: Manages OpenAI embedding API
+- VectorDBManager: Handles ChromaDB operations
+
+The ingestion process runs offline and populates the knowledge base
+that powers the bot's philosophical tweet generation. Each chunk
+maintains enough context for meaningful content synthesis.
+"""
 
 import hashlib
 import json

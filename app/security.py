@@ -1,4 +1,35 @@
-"""Content filtering and security measures for the Zen Kink Bot."""
+"""
+Content filtering and security system - Multi-layer safety and moderation.
+
+This module implements comprehensive content safety measures to ensure the bot
+produces appropriate, non-controversial content. It combines rule-based filtering
+with OpenAI's moderation API for robust protection.
+
+Key Components:
+1. ContentFilter: Multi-layer content safety validation
+2. EmergencyControls: System-wide emergency stop capabilities
+
+Safety Layers:
+- Profanity filtering with customizable word lists
+- Pattern matching for inappropriate content (violence, hate speech)
+- Political content avoidance to maintain neutrality
+- OpenAI Moderation API for comprehensive checks
+- Spam and promotional content detection
+- Excessive capitalization and repetition filters
+
+Emergency Conditions:
+- Daily cost limit exceeded
+- Low success rate (< 50%)
+- High error rates
+- Repeated content filter rejections
+
+The security system ensures:
+- Brand safety through content filtering
+- Cost protection with spending limits
+- System stability with emergency stops
+- User safety with input validation
+- Compliance with platform policies
+"""
 
 import re
 from typing import List, Dict, Optional

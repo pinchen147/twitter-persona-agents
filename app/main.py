@@ -1,5 +1,31 @@
 """Main FastAPI application for the Zen Kink Bot."""
 
+"""
+Main FastAPI application module - Core entry point for the Twitter bot web service.
+
+This module serves as the primary web interface for the multi-account Twitter bot system.
+It provides:
+- Web dashboard UI for monitoring and control
+- RESTful API endpoints for bot operations
+- Health monitoring and emergency controls
+- Account management interfaces
+- Real-time status and metrics
+- Manual tweet generation and posting
+
+Key responsibilities:
+1. Web Server: Hosts the FastAPI application with async lifecycle management
+2. Dashboard UI: Renders the control panel interface using Jinja2 templates
+3. API Endpoints: Provides REST APIs for all bot operations (posting, monitoring, config)
+4. Account Routing: Handles multi-account operations with account-specific endpoints
+5. Health Monitoring: Exposes health check endpoints for system monitoring
+6. Emergency Controls: Implements emergency stop functionality for safety
+7. Cost Tracking: Integrates with monitoring systems for API cost management
+8. Logging: Structured logging with correlation IDs for debugging
+
+The application follows a modular architecture where this main module orchestrates
+various subsystems (generation, scheduling, monitoring, security) through dependency injection.
+"""
+
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
