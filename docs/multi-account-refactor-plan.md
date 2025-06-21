@@ -15,7 +15,7 @@ Transform the single-account Twitter bot into a multi-account system where each 
 
 ### 1. Create Account Structure
 - Create `accounts/` directory
-- Create `accounts/zenkink.json` with current persona, exemplars, and placeholder credentials
+- Create `accounts/startupquotes.json` with current persona, exemplars, and placeholder credentials
 - Define account JSON schema and validation
 
 ### 2. Account Manager Module
@@ -80,12 +80,12 @@ Transform the single-account Twitter bot into a multi-account system where each 
 ## Phase 7: Migration & Testing
 
 ### 12. Migration Script
-- Create script to populate `accounts/zenkink.json` from existing files
+- Create script to populate `accounts/startupquotes.json` from existing files
 - Preserve current data (persona.txt, exemplars.json)
 - Add validation for account configurations
 
 ### 13. Testing & Validation
-- Test single account functionality (zenkink)
+- Test single account functionality (startupquotes)
 - Verify dashboard shows account-specific data
 - Test force posting for specific accounts
 - Ensure scheduler works with account loop
@@ -94,17 +94,17 @@ Transform the single-account Twitter bot into a multi-account system where each 
 
 ```json
 {
-  "account_id": "zenkink",
-  "display_name": "Zen Kink", 
-  "persona": "You are a wise guide who blends the stillness of Eckhart Tolle...",
+  "account_id": "startupquotes",
+  "display_name": "Startup Wisdom Bot", 
+  "persona": "You are Startup Oracle—a no-BS founder-guide who knows great tech is table stakes...",
   "exemplars": [
     {
       "id": 1,
-      "text": "True presence isn't an escape from life...",
+      "text": "The best startups almost always start as side projects...",
       "created_at": "2024-01-01T00:00:00Z"
     }
   ],
-  "vector_collection": "zen_kink_knowledge",
+  "vector_collection": "startup_knowledge",
   "twitter_credentials": {
     "api_key": "your-api-key",
     "api_secret": "your-api-secret", 
@@ -130,7 +130,7 @@ Transform the single-account Twitter bot into a multi-account system where each 
 
 ```
 accounts/
-  zenkink.json
+  startupquotes.json
   future_account.json
 app/
   account_manager.py  # NEW
@@ -150,7 +150,7 @@ data/
 
 ## Success Criteria
 
-1. ✅ Current zenkink account functionality preserved
+1. ✅ Current startupquotes account functionality preserved
 2. ✅ Clean account abstraction layer implemented
 3. ✅ Dashboard shows account-specific data
 4. ✅ Scheduler posts to all accounts

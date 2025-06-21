@@ -388,16 +388,24 @@ class HealthChecker:
     
     def _check_files(self) -> Dict[str, any]:
         """Check required files exist."""
-        required_files = [
-            Path("data/persona.txt"),
-            Path("data/exemplars.json")
-        ]
-        
-        missing_files = [f for f in required_files if not f.exists()]
-        if missing_files:
-            return {"healthy": False, "message": f"Missing files: {missing_files}"}
-        
-        return {"healthy": True, "message": "All required files present"}
+        try:
+            # Check for account configurations instead of legacy files
+            from app.account_manager import load_all_accounts
+            accounts = load_all_accounts()
+            
+            if not accounts:
+                return {"healthy": False, "message": "No account configurations found"}
+            
+            # Check that each account has required fields
+            for account_id, account in accounts.items():
+                if not account.get("persona"):
+                    return {"healthy": False, "message": f"Account {account_id} missing persona"}
+                if not account.get("exemplars"):
+                    return {"healthy": False, "message": f"Account {account_id} missing exemplars"}
+            
+            return {"healthy": True, "message": f"All {len(accounts)} account configurations valid"}
+        except Exception as e:
+            return {"healthy": False, "message": f"Account configuration error: {str(e)}"}
     
     def _check_cost_limits(self) -> Dict[str, any]:
         """Check cost limits."""

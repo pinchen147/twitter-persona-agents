@@ -13,7 +13,7 @@ services:
       - PYTHONPATH=/app
       - ENVIRONMENT=development
     env_file:
-      - ../.env
+      - ../config/.env
     depends_on:
       - redis
     networks:

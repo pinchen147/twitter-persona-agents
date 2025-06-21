@@ -41,8 +41,8 @@ from dotenv import load_dotenv
 from app.exceptions import ConfigurationError
 from app.account_manager import get_account, load_all_accounts
 
-# Load environment variables from config/.env
-load_dotenv("config/.env")
+# Load environment variables from ../../.env
+load_dotenv("../../.env")
 
 
 def get_config() -> dict:

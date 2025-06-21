@@ -60,11 +60,11 @@ def load_environment():
 
 
 def check_existing_account():
-    """Check if zenkink account already exists and is valid."""
+    """Check if startupquotes account already exists and is valid."""
     try:
-        account = get_account("zenkink")
+        account = get_account("startupquotes")
         if account:
-            print("✓ zenkink account configuration already exists")
+            print("✓ startupquotes account configuration already exists")
             validate_account_config(account)
             print("✓ Account configuration is valid")
             return True
@@ -75,7 +75,7 @@ def check_existing_account():
 
 
 def update_account_credentials():
-    """Update the zenkink.json file with actual Twitter credentials from environment."""
+    """Update the startupquotes.json file with actual Twitter credentials from environment."""
     try:
         # Load current environment
         env_vars = load_environment()
@@ -88,7 +88,7 @@ def update_account_credentials():
             return False
         
         # Load existing account config
-        account_file = Path("accounts/zenkink.json")
+        account_file = Path("accounts/startupquotes.json")
         if not account_file.exists():
             print(f"❌ Account file not found: {account_file}")
             return False
@@ -121,12 +121,12 @@ def update_account_credentials():
 
 
 def test_account_connection():
-    """Test Twitter connection for the zenkink account."""
+    """Test Twitter connection for the startupquotes account."""
     try:
-        print("Testing Twitter connection for zenkink account...")
+        print("Testing Twitter connection for startupquotes account...")
         
         # Test the connection
-        client = get_twitter_client(account_id="zenkink")
+        client = get_twitter_client(account_id="startupquotes")
         user = client.get_me()
         
         if user.data:
@@ -149,21 +149,21 @@ def show_next_steps():
     print("MIGRATION COMPLETE! 🎉")
     print("="*50)
     print("\nNext steps:")
-    print("1. The zenkink account is now configured and ready to use")
+    print("1. The startupquotes account is now configured and ready to use")
     print("2. The system will automatically use account-specific settings")
     print("3. The scheduler will post tweets for all configured accounts")
     print("\nTo add more accounts:")
     print("1. Create a new JSON file in accounts/ (e.g., accounts/mybot.json)")
-    print("2. Copy the structure from accounts/zenkink.json")
+    print("2. Copy the structure from accounts/startupquotes.json")
     print("3. Update the account_id, display_name, persona, exemplars, and credentials")
     print("4. Set the vector_collection name (can be shared or unique)")
     print("\nTo test the setup:")
-    print("1. Start the application: python -m app.main")
-    print("2. Visit http://localhost:8000")
+    print("1. Start the application: uvicorn app.main:app --host 0.0.0.0 --port 8582")
+    print("2. Visit http://localhost:8582")
     print("3. Use the new account-specific endpoints:")
     print("   - GET /api/accounts - list all accounts")
-    print("   - GET /api/status/zenkink - get account status")
-    print("   - POST /api/force-post/zenkink - force post for account")
+    print("   - GET /api/status/startupquotes - get account status")
+    print("   - POST /api/force-post/startupquotes - force post for account")
     print("\nThe system maintains backward compatibility with the old API endpoints.")
 
 
@@ -186,7 +186,7 @@ def main():
             return True
         else:
             print("\n⚠ Account exists but Twitter connection failed.")
-            print("The credentials in accounts/zenkink.json may need to be updated.")
+            print("The credentials in accounts/startupquotes.json may need to be updated.")
     
     print("\nStarting migration...")
     

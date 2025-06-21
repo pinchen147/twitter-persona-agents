@@ -27,6 +27,7 @@ various subsystems (generation, scheduling, monitoring, security) through depend
 """
 
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -935,6 +936,53 @@ async def search_chunks_account(account_id: str, query: str, limit: int = 10):
     except Exception as e:
         logger.error("Chunk search failed", account_id=account_id, query=query, error=str(e))
         return HTMLResponse(f"<p class='text-red-500 text-sm'>Search failed for {account_id}: {str(e)}</p>")
+
+
+@app.post("/api/resume-scheduler")
+async def resume_scheduler():
+    """Resume the scheduler if it's paused."""
+    try:
+        from app.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        scheduler.resume()
+        
+        logger.info("Scheduler resume requested via API")
+        return {"success": True, "message": "Scheduler resumed"}
+    except Exception as e:
+        logger.error("Failed to resume scheduler", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to resume scheduler: {str(e)}")
+
+
+@app.post("/api/pause-scheduler")  
+async def pause_scheduler():
+    """Pause the scheduler."""
+    try:
+        from app.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        scheduler.pause()
+        
+        logger.info("Scheduler pause requested via API")
+        return {"success": True, "message": "Scheduler paused"}
+    except Exception as e:
+        logger.error("Failed to pause scheduler", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to pause scheduler: {str(e)}")
+
+
+@app.post("/api/restart-scheduler")
+async def restart_scheduler():
+    """Restart the scheduler completely."""
+    try:
+        from app.scheduler import stop_scheduler, start_scheduler
+        
+        logger.info("Restarting scheduler via API")
+        stop_scheduler()
+        await asyncio.sleep(2)  # Give it time to stop
+        start_scheduler()
+        
+        return {"success": True, "message": "Scheduler restarted"}
+    except Exception as e:
+        logger.error("Failed to restart scheduler", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to restart scheduler: {str(e)}")
 
 
 if __name__ == "__main__":

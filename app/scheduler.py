@@ -84,15 +84,16 @@ class TweetScheduler:
             return
         
         try:
-            # Add the main posting job
+            # Add the main posting job with fixed misfire handling
             self.scheduler.add_job(
                 func=self._scheduled_post_job,
                 trigger=IntervalTrigger(hours=self.interval_hours),
                 id="main_posting_job",
                 name="Automated Tweet Posting",
-                misfire_grace_time=300,  # 5 minutes grace period
+                misfire_grace_time=3600,  # 1 hour grace period
                 max_instances=1,  # Only one instance at a time
-                replace_existing=True
+                replace_existing=True,
+                coalesce=True  # Combine multiple missed runs into one
             )
             
             # Add a health check job every hour
@@ -101,14 +102,27 @@ class TweetScheduler:
                 trigger=IntervalTrigger(hours=1),
                 id="health_check_job",
                 name="Health Check",
-                misfire_grace_time=600,  # 10 minutes grace period
+                misfire_grace_time=3600,  # 1 hour grace period
                 max_instances=1,
-                replace_existing=True
+                replace_existing=True,
+                coalesce=True
             )
             
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True
+            
+            # Force resume immediately after start to prevent APScheduler auto-pause
+            if self.scheduler.running and self.scheduler.state == 1:  # STATE_PAUSED
+                print(f"WARNING: Scheduler started in paused state, forcing resume...")
+                self.scheduler.resume()
+                # Double-check resume worked
+                if self.scheduler.state == 1:
+                    print(f"WARNING: Scheduler still paused after resume, retrying...")
+                    # Clear any accumulated misfires and force resume again
+                    for job in self.scheduler.get_jobs():
+                        job.modify(misfire_grace_time=None)  # Remove misfire checking temporarily
+                    self.scheduler.resume()
             
             # Update next run time
             self._update_next_run_time()
