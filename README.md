@@ -99,7 +99,7 @@ source venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload
 
 # Or use Docker
-docker-compose up --build
+docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
 ### 6. Access Control Panel
