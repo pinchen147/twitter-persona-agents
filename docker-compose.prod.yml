@@ -1,105 +1,35 @@
-version: '3.8'
-
 services:
   twitter-persona-agents:
-    container_name: twitter-persona-agents-prod
+    container_name: twitter-persona-agents-app-prod
     build:
       context: .
       dockerfile: docker/Dockerfile
     ports:
       - "8582:8000"
     volumes:
-      # Persist data across container restarts
       - ./data:/app/data
-      - ./config:/app/config
-      - ./accounts:/app/accounts
-      # Bind mount for logs (optional - logs also go to Docker logs)
-      - ./logs:/app/logs
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=production
     env_file:
-      - .env
-    restart: unless-stopped  # Always restart unless manually stopped
+      - config/.env
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
     networks:
       - twitter-persona-agents-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=10)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    # Resource limits (adjust based on your server)
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-        reservations:
-          memory: 512M
-          cpus: '0.25'
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    container_name: twitter-persona-agents-redis
-    ports:
-      - "6379:6379"
+    container_name: twitter-persona-agents-redis-prod
     volumes:
       - redis_data:/data
-      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
-    restart: unless-stopped
     networks:
       - twitter-persona-agents-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  # Optional: Monitoring with Watchtower for auto-updates
-  watchtower:
-    image: containrrr/watchtower
-    container_name: twitter-persona-agents-watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 3600 --cleanup twitter-persona-agents-prod twitter-persona-agents-redis
     restart: unless-stopped
-    networks:
-      - twitter-persona-agents-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "1m"
-        max-file: "2"
 
 volumes:
   redis_data:
-    driver: local
 
 networks:
   twitter-persona-agents-network:

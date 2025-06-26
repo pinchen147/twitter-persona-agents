@@ -79,10 +79,12 @@ python scripts/migrate_to_multi_account.py
 ## System Architecture
 
 ### Multi-Account Design
-This is a **multi-account Twitter bot system** where each account operates independently:
+This is a **multi-account social media bot system** where each account operates independently across multiple platforms:
 - **Account Configuration**: Each account defined in `accounts/{account_id}.json`
-- **Independent Personas**: Unique voice, exemplar tweets, and knowledge bases per account
-- **Unified Scheduling**: Single scheduler posts to all accounts (every 6 hours = 4 posts/day)
+- **Multi-Platform Support**: Each account can post to Twitter, Threads, or both
+- **Independent Personas**: Unique voice, exemplar posts, and knowledge bases per account
+- **Unified Scheduling**: Single scheduler posts to all accounts across all platforms (every 6 hours = 4 posts/day)
+- **Platform Adaptation**: Content optimized for each platform's character limits (Twitter 280, Threads 500)
 - **Shared Infrastructure**: Common generation engine, monitoring, and health systems
 
 ### Core Components
@@ -92,6 +94,8 @@ This is a **multi-account Twitter bot system** where each account operates indep
 - **`account_manager.py`**: Multi-account configuration management
 - **`generation.py`**: Tweet generation engine with RAG (Retrieval-Augmented Generation)
 - **`twitter_client.py`**: Twitter API v2 integration with rate limiting
+- **`threads_client.py`**: Meta Threads Graph API integration
+- **`multi_platform_poster.py`**: Unified posting across multiple platforms
 - **`scheduler.py`**: APScheduler-based posting automation with catch-up logic
 - **`monitoring.py`**: Cost tracking, activity logging, and health checks
 - **`security.py`**: Content filtering and moderation
@@ -108,7 +112,8 @@ This is a **multi-account Twitter bot system** where each account operates indep
 2. **Context Retrieval**: k-NN semantic search for related content
 3. **Dynamic Prompting**: Jinja2 templates combining persona + context + exemplars
 4. **Content Safety**: Multi-layer filtering (rules + OpenAI moderation)
-5. **Tweet Refinement**: Auto-shortening if >280 characters
+5. **Content Refinement**: Auto-shortening if exceeding platform limits (Twitter 280, Threads 500)
+6. **Multi-Platform Posting**: Post simultaneously to all enabled platforms
 
 ### Configuration Structure
 
@@ -118,23 +123,73 @@ This is a **multi-account Twitter bot system** where each account operates indep
   "account_id": "unique_identifier",
   "display_name": "Human Readable Name",
   "persona": "Personality and voice description...",
-  "exemplars": ["Example tweet 1", "Example tweet 2"],
+  "exemplars": ["Example post 1", "Example post 2"],
   "vector_collection": "knowledge_collection_name",
+  "posting_platforms": ["twitter", "threads"],
   "twitter_credentials": {
     "bearer_token": "env:TWITTER_BEARER_TOKEN",
-    "api_key": "env:TWITTER_API_KEY"
+    "api_key": "env:TWITTER_API_KEY",
+    "api_secret": "env:TWITTER_API_SECRET",
+    "access_token": "env:TWITTER_ACCESS_TOKEN",
+    "access_token_secret": "env:TWITTER_ACCESS_TOKEN_SECRET"
+  },
+  "threads_credentials": {
+    "access_token": "env:THREADS_ACCESS_TOKEN",
+    "user_id": "env:THREADS_USER_ID"
   }
 }
 ```
 
 #### Main Configuration (`config/config.yaml`)
+Example configuration with multi-platform support:
+
+```yaml
+scheduler:
+  post_interval_hours: 6
+  catch_up_enabled: true
+  max_catch_up_posts: 3
+
+openai:
+  model: "gpt-4.1"  # or "o3"
+  temperature: 0.8
+
+twitter:
+  post_enabled: true
+  character_limit: 280
+
+threads:
+  post_enabled: true
+  character_limit: 500
+
+cost_limits:
+  daily_limit_usd: 10.00
+```
+
+Key sections:
 - **Scheduler**: Posting intervals, catch-up logic, timezone settings
 - **OpenAI**: Model selection (gpt-4.1 for creativity, o3 for reasoning)
+- **Platform Settings**: Twitter and Threads posting configuration
 - **Content Safety**: Moderation settings, profanity filters
 - **Cost Management**: Daily limits, emergency stops
 
 #### Environment Variables (`.env`)
-Required API credentials for all services (OpenAI, Twitter).
+Required API credentials for all services (OpenAI, Twitter, Threads):
+
+```bash
+# OpenAI API
+OPENAI_API_KEY=sk-...
+
+# Twitter API credentials
+TWITTER_BEARER_TOKEN=...
+TWITTER_API_KEY=...
+TWITTER_API_SECRET=...
+TWITTER_ACCESS_TOKEN=...
+TWITTER_ACCESS_TOKEN_SECRET=...
+
+# Threads API credentials  
+THREADS_ACCESS_TOKEN=...
+THREADS_USER_ID=...
+```
 
 ## Key Features
 
@@ -158,11 +213,14 @@ Required API credentials for all services (OpenAI, Twitter).
 
 ## API Endpoints
 
-### Multi-Account Operations
+### Multi-Platform Operations
 - `GET /api/accounts` - List all configured accounts
 - `GET /api/status/{account_id}` - Account-specific status
-- `POST /api/force-post/{account_id}` - Manual posting
-- `POST /api/test-generation/{account_id}` - Test tweet generation
+- `POST /api/force-post/{account_id}` - Manual posting to all platforms
+- `POST /api/force-post-platform/{account_id}/{platform}` - Manual posting to specific platform
+- `POST /api/test-generation/{account_id}` - Test content generation
+- `GET /api/platform-info/{account_id}` - Platform-specific account information
+- `GET /api/test-connections/{account_id}` - Test all platform connections
 - `GET /api/search-chunks/{account_id}?query=...` - Search knowledge base
 
 ### System Operations
@@ -175,13 +233,14 @@ Required API credentials for all services (OpenAI, Twitter).
 
 ### Adding New Accounts
 1. Create `accounts/new_account.json` with account configuration
-2. Add Twitter credentials to `.env`
-3. Restart application (auto-discovery of new accounts)
-4. Optionally create account-specific knowledge base collections
+2. Add platform credentials to `.env` (Twitter and/or Threads)
+3. Configure `posting_platforms` array in account JSON
+4. Restart application (auto-discovery of new accounts)
+5. Optionally create account-specific knowledge base collections
 
 ### Testing Changes
-1. Use test mode (`twitter.post_enabled: false` in config)
-2. Generate test tweets via `/api/test-generation/{account_id}`
+1. Use test mode (`twitter.post_enabled: false` and `threads.post_enabled: false` in config)
+2. Generate test content via `/api/test-generation/{account_id}`
 3. Monitor logs and health endpoints
 4. Run full test suite before deployment
 
@@ -216,10 +275,10 @@ docker-compose -f docker-compose.prod.yml down
 sudo ./scripts/install-systemd-service.sh
 
 # Service management
-sudo systemctl start twitter-persona-agents
-sudo systemctl stop twitter-persona-agents
-sudo systemctl status twitter-persona-agents
-sudo journalctl -u twitter-persona-agents -f
+sudo systemctl start multi-platform-persona-agents
+sudo systemctl stop multi-platform-persona-agents
+sudo systemctl status multi-platform-persona-agents
+sudo journalctl -u multi-platform-persona-agents -f
 ```
 
 ### Cloud Deployment Options
@@ -229,7 +288,7 @@ sudo journalctl -u twitter-persona-agents -f
 # Create droplet with Docker pre-installed
 # Clone repo and run deployment script
 git clone <your-repo>
-cd twitter-persona-agents
+cd multi-platform-persona-agents
 ./deploy-24-7.sh
 ```
 
@@ -249,19 +308,19 @@ sudo chmod +x /usr/local/bin/docker-compose
 
 # Deploy your bot
 git clone <your-repo>
-cd twitter-persona-agents
+cd multi-platform-persona-agents
 ./deploy-24-7.sh
 ```
 
 #### Google Cloud Run (Serverless)
 ```bash
 # Build and push to Container Registry
-docker build -f docker/Dockerfile -t gcr.io/PROJECT-ID/twitter-persona-agents .
-docker push gcr.io/PROJECT-ID/twitter-persona-agents
+docker build -f docker/Dockerfile -t gcr.io/PROJECT-ID/multi-platform-persona-agents .
+docker push gcr.io/PROJECT-ID/multi-platform-persona-agents
 
 # Deploy to Cloud Run with persistent storage
-gcloud run deploy twitter-persona-agents \
-  --image gcr.io/PROJECT-ID/twitter-persona-agents \
+gcloud run deploy multi-platform-persona-agents \
+  --image gcr.io/PROJECT-ID/multi-platform-persona-agents \
   --platform managed \
   --region us-central1 \
   --memory 1Gi \

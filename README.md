@@ -1,13 +1,13 @@
-# Multi-Account Twitter Agent 🧘✨
+# Multi-Platform Persona Agents 🧘✨
 
 ![Project Status: Production Ready](https://img.shields.io/badge/status-production_ready-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python: 3.11+](https://img.shields.io/badge/python-3.11+-blue)
 ![Multi-Account Support](https://img.shields.io/badge/multi--account-supported-orange)
 
-A **multi-account autonomous Twitter agent** that generates and posts insightful content by synthesizing philosophical teachings. Originally designed to blend **Eckhart Tolle** (presence, mindfulness, ego-dissolution) and **Carolyn Elliott** (existential kink, shadow work), the system now supports unlimited Twitter accounts with unique personas.
+A **multi-account autonomous social media agent** that generates and posts insightful content across **Twitter and Meta's Threads** by synthesizing philosophical teachings. Originally designed to blend **Eckhart Tolle** (presence, mindfulness, ego-dissolution) and **Carolyn Elliott** (existential kink, shadow work), the system now supports unlimited accounts across multiple platforms with unique personas.
 
-The system is built on a core philosophy of **simplicity and ruthless pragmatism**. Each account can have its own personality, knowledge base, and posting style, managed through a unified control panel.
+The system is built on a core philosophy of **simplicity and ruthless pragmatism**. Each account can have its own personality, knowledge base, and posting style across multiple social media platforms, managed through a unified control panel.
 
 ## ⚡ Ready to Run
 
@@ -20,20 +20,24 @@ The system is built on a core philosophy of **simplicity and ruthless pragmatism
 5. **Build knowledge base**: `python -m ingest.split_embed`
 6. **Start application**: `uvicorn app.main:app --host 0.0.0.0 --port 8582 --reload`
 7. **Open control panel**: http://localhost:8582
+8. **build in dockerdocker**: `docker-compose -f docker-compose.prod.yml up -d`
+      .
 
 ## 🔄 Multi-Account Features
 
-### **Account Management**
-- **Multiple Twitter accounts** posting simultaneously
-- **Account-specific personas** and exemplar tweets  
+### **Multi-Platform Account Management**
+- **Multiple accounts** posting simultaneously across **Twitter and Threads**
+- **Account-specific personas** and exemplar posts for each platform
 - **Shared or separate knowledge bases** per account
-- **Unified scheduler** posts one tweet per account every 6 hours (4 posts/day)
+- **Unified scheduler** posts content to all enabled platforms every 6 hours (4 posts/day)
+- **Platform-specific adaptation** (Twitter 280 chars, Threads 500 chars)
 - **Missed runs handling** with automatic catch-up posts
 - **Easy account addition** via JSON configuration files
 
-### **📅 Smart Scheduling & Catch-Up System**
+### **📅 Smart Multi-Platform Scheduling & Catch-Up System**
+- **Simultaneous posting**: Each post goes to all enabled platforms (Twitter + Threads) simultaneously
 - **Automatic catch-up**: When your system restarts after being offline, it detects missed posting opportunities and schedules catch-up posts
-- **Configurable intervals**: Default 6-hour posting schedule (4 tweets/day) balances consistency with avoiding spam
+- **Configurable intervals**: Default 6-hour posting schedule (4 posts/day) balances consistency with avoiding spam
 - **Grace period**: 1-hour buffer before posts are considered "missed" to avoid unnecessary catch-ups
 - **Intelligent limits**: Maximum 3 catch-up posts per account to prevent flooding timelines
 - **Staggered posting**: Catch-up posts are spaced 30 seconds apart to respect rate limits
@@ -45,11 +49,12 @@ The system is built on a core philosophy of **simplicity and ruthless pragmatism
 - Docker (optional but recommended)
 - OpenAI API key
 - Twitter API v2 credentials (Bearer token, API keys, Access tokens)
+- Meta Threads API credentials (Access token, User ID)
 
 ### 1. Clone and Setup
 ```bash
 git clone <your-repo-url>
-cd twitter-persona-agents
+cd multi-platform-persona-agents
 
 # The virtual environment 'venv' is already created for you!
 # Just activate it:
@@ -167,10 +172,12 @@ graph TD
 - **Dynamic Prompting**: Jinja2 templates combining persona + context + exemplars
 - **Tweet Refinement**: Auto-shortening and content filtering
 
-### 3. **Twitter Integration** (`app/twitter_client.py`)**
-- **Rate Limiting**: Respects Twitter API limits with exponential backoff
-- **Error Handling**: Comprehensive retry logic and status tracking
-- **Test Mode**: Generate without posting for safe development
+### 3. **Multi-Platform Integration**
+- **Twitter Client** (`app/twitter_client.py`): Twitter API v2 with rate limiting and error handling
+- **Threads Client** (`app/threads_client.py`): Meta's Threads Graph API integration
+- **Unified Poster** (`app/multi_platform_poster.py`): Coordinates posting across all platforms
+- **Platform Adaptation**: Content optimized for each platform's character limits
+- **Test Mode**: Generate without posting for safe development across all platforms
 
 ### 4. **Content Safety** (`app/security.py`)**
 - **Multi-layer Filtering**: Basic rules + OpenAI moderation API
@@ -211,6 +218,11 @@ twitter:
   post_enabled: true  # Set to false for testing
   character_limit: 280
 
+# Threads API settings
+threads:
+  post_enabled: true  # Set to false for testing
+  character_limit: 500
+
 # Cost management
 cost_limits:
   daily_limit_usd: 10.00
@@ -220,11 +232,17 @@ cost_limits:
 ### Secrets (`.env`)
 ```bash
 OPENAI_API_KEY=sk-your-key-here
+
+# Twitter API credentials
 TWITTER_BEARER_TOKEN=your-bearer-token
 TWITTER_API_KEY=your-api-key
 TWITTER_API_SECRET=your-api-secret
 TWITTER_ACCESS_TOKEN=your-access-token
 TWITTER_ACCESS_TOKEN_SECRET=your-access-token-secret
+
+# Threads API credentials
+THREADS_ACCESS_TOKEN=your-threads-access-token
+THREADS_USER_ID=your-threads-user-id
 ```
 
 ## 🧪 Testing & Development
@@ -238,17 +256,21 @@ uvicorn app.main:app --reload
 docker-compose -f docker/docker-compose.yml up
 ```
 
-### Generate Test Tweet
+### Generate Test Content
 ```bash
-# Through the web UI: Use "Generate Test Tweet" button
+# Through the web UI: Use "Generate Test Content" button
 # Or via API:
 curl -X POST http://localhost:8582/api/test-generation
 
 # For specific account:
-curl -X POST http://localhost:8582/api/test-generation/zenkink
+curl -X POST http://localhost:8582/api/test-generation/startupquotes
+
+# Test specific platform:
+curl -X POST http://localhost:8582/api/force-post-platform/startupquotes/twitter
+curl -X POST http://localhost:8582/api/force-post-platform/startupquotes/threads
 ```
 
-## 🎯 Multi-Account API Endpoints
+## 🎯 Multi-Platform API Endpoints
 
 ### Account Management
 ```bash
@@ -258,19 +280,28 @@ GET /api/accounts
 # Get account status
 GET /api/status/{account_id}
 
-# Force post for specific account
+# Force post to all platforms for specific account
 POST /api/force-post/{account_id}
+
+# Force post to specific platform
+POST /api/force-post-platform/{account_id}/{platform}  # platform: twitter|threads
 
 # Test generation for specific account
 POST /api/test-generation/{account_id}
 
+# Get platform info for account
+GET /api/platform-info/{account_id}
+
+# Test platform connections
+GET /api/test-connections/{account_id}
+
 # Search account's knowledge base
-GET /api/search-chunks/{account_id}?query=presence
+GET /api/search-chunks/{account_id}?query=startup
 ```
 
 ### Adding New Accounts
 1. **Create account file**: `accounts/mybot.json`
-2. **Copy structure** from `accounts/zenkink.json`
+2. **Copy structure** from `accounts/startupquotes.json`
 3. **Update configuration**:
    ```json
    {
@@ -279,7 +310,12 @@ GET /api/search-chunks/{account_id}?query=presence
      "persona": "Your unique bot personality...",
      "exemplars": [...],
      "vector_collection": "mybot_knowledge",
-     "twitter_credentials": {...}
+     "posting_platforms": ["twitter", "threads"],
+     "twitter_credentials": {...},
+     "threads_credentials": {
+       "access_token": "env:THREADS_ACCESS_TOKEN",
+       "user_id": "env:THREADS_USER_ID"
+     }
    }
    ```
 4. **Restart application** - new account automatically included
@@ -321,6 +357,8 @@ gcloud run deploy twitter-persona-agents \
 - `GET /api/status` - Real-time system status (legacy, single account)
 - `GET /api/status/{account_id}` - Account-specific status
 - `GET /api/accounts` - List all configured accounts
+- `GET /api/platform-info/{account_id}` - Platform-specific account information
+- `GET /api/test-connections/{account_id}` - Test all platform connections
 
 ### Logs & Metrics
 - **Structured Logging**: JSON logs with correlation IDs and account context
@@ -337,9 +375,10 @@ gcloud run deploy twitter-persona-agents \
 ## 🔒 Security & Compliance
 
 ### Content Safety
-- **OpenAI Moderation**: Automatic content screening
-- **Political Filtering**: Avoids controversial topics
+- **OpenAI Moderation**: Automatic content screening for all platforms
+- **Political Filtering**: Avoids controversial topics across platforms
 - **Profanity Protection**: Configurable word filtering
+- **Platform Compliance**: Adheres to Twitter and Threads content policies
 - **Human Override**: Emergency stop and manual review capabilities
 
 ### Data Privacy
@@ -347,10 +386,11 @@ gcloud run deploy twitter-persona-agents \
 - **No Data Collection**: No user data or analytics collection
 - **Minimal API Calls**: Efficient API usage with caching
 
-### Twitter Compliance
-- **Rate Limiting**: Respects all Twitter API limits
-- **Clear Attribution**: Bot identification in profile
-- **Terms Compliance**: Follows Twitter automation rules
+### Platform Compliance
+- **Rate Limiting**: Respects all Twitter and Threads API limits
+- **Clear Attribution**: Bot identification in profiles
+- **Terms Compliance**: Follows Twitter and Meta automation rules
+- **Cross-Platform Consistency**: Maintains persona across platforms
 
 ## 🛠️ Customization
 
@@ -369,13 +409,13 @@ Modify `prompts/base_prompt.j2` and `prompts/shortening_prompt.j2` for custom ge
 
 ## 📈 Performance & Costs
 
-### Typical Costs (per tweet per account)
+### Typical Costs (per post per account)
 - **o3 Generation**: ~$0.05-0.15 (reasoning model)
 - **GPT-4.1 Generation**: ~$0.02-0.05 (faster alternative)
 - **Embeddings**: ~$0.001
 - **Moderation**: Free
-- **Total**: ~$0.02-0.15 per tweet per account
-- **Daily cost per account**: ~$0.08-0.60 (4 tweets at 6-hour intervals)
+- **Total**: ~$0.02-0.15 per post per account (same content to all platforms)
+- **Daily cost per account**: ~$0.08-0.60 (4 posts at 6-hour intervals to all platforms)
 
 ### Performance Metrics
 - **Generation Time**: 3-8 seconds average
@@ -420,6 +460,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Verify all 5 Twitter credentials in `.env`
 - Ensure API v2 access is enabled on your Twitter app
 
+**\"Threads authentication failed\"**
+- Verify `THREADS_ACCESS_TOKEN` and `THREADS_USER_ID` in `.env`
+- Ensure your Threads account has API access enabled
+
 **\"Vector database empty\"**
 - Run `python -m ingest.split_embed` to build knowledge base
 - Check for errors in PDF processing logs
@@ -459,24 +503,27 @@ Each account operates independently with its own:
 - **Independent Twitter credentials** and rate limiting
 - **Account-specific monitoring** and logging
 
-### **Unified Scheduling**
-- **Single scheduler** manages all accounts
-- **One tweet per account** per scheduled interval (every 6 hours = 4 posts/day)
+### **Unified Multi-Platform Scheduling**
+- **Single scheduler** manages all accounts across all platforms
+- **One post per account** per scheduled interval (every 6 hours = 4 posts/day)
+- **Simultaneous posting** to all enabled platforms (Twitter + Threads)
 - **Missed runs handling** with automatic catch-up posts on startup
-- **Parallel processing** for efficient multi-account posting
-- **Account-aware error handling** and retry logic
+- **Parallel processing** for efficient multi-account, multi-platform posting
+- **Platform-aware error handling** and retry logic
 
 ### **Core Generation Logic** (Per Account)
 1. **Random Seed Selection**: Choose random chunk from account's vector collection
 2. **Context Retrieval**: Find related chunks using semantic similarity
-3. **Style Application**: Apply account's exemplar tweets for voice consistency  
+3. **Style Application**: Apply account's exemplar posts for voice consistency  
 4. **Dynamic Prompting**: Combine account persona + context + exemplars
-5. **Multi-Account Posting**: Generate and post simultaneously across accounts
+5. **Platform Adaptation**: Optimize content for each platform's character limits
+6. **Multi-Platform Posting**: Generate once and post simultaneously to all enabled platforms
 
 ### **Key Design Principles**
-- **Account Isolation**: Each account's content and style remain distinct
+- **Account Isolation**: Each account's content and style remain distinct across platforms
+- **Platform Independence**: Add or remove platforms without affecting others
 - **Shared Infrastructure**: Common scheduling, monitoring, and health systems
-- **Zero-Configuration Scaling**: Add accounts by creating JSON files
+- **Zero-Configuration Scaling**: Add accounts or platforms by updating JSON files
 - **Backward Compatibility**: Legacy single-account endpoints still supported
 
-**Ready to scale your digital presence across multiple accounts? Let's build something transformative.** 🚀✨
+**Ready to scale your digital presence across multiple accounts and platforms? Let's build something transformative.** 🚀✨

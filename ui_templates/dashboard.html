@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zen Kink Bot - Control Panel</title>
+    <title>Multi-Platform AI Agent Control Panel</title>
     <script src="https://unpkg.com/htmx.org@1.9.8"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -25,7 +25,7 @@
         <div class="mb-8">
             <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Multi-Account Twitter Agent</h1>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Multi-Platform AI Agent</h1>
                     <p class="text-gray-600">Managing {{ all_accounts|length }} account{{ 's' if all_accounts|length != 1 else '' }}</p>
                 </div>
                 
@@ -60,10 +60,49 @@
                         </p>
                         <p class="text-xs text-blue-600">
                             Account ID: {{ current_account_id }} | 
-                            Vector Collection: {{ current_account.get('vector_collection', 'N/A') }}
+                            Vector Collection: {{ current_account.get('vector_collection', 'N/A') }} |
+                            Platforms: {{ current_account.get('posting_platforms', ['twitter'])|join(', ')|title }}
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Platform Status -->
+        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Platform Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {% for platform in current_account.get('posting_platforms', ['twitter']) %}
+                <div class="border rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-medium text-gray-900">{{ platform|title }}</h3>
+                        <span class="status-indicator status-healthy" title="Connected"></span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">
+                        {% if platform == 'twitter' %}
+                            Character limit: 280
+                        {% elif platform == 'threads' %}
+                            Character limit: 500
+                        {% endif %}
+                    </p>
+                    <div class="text-xs text-gray-500 mb-3">
+                        {% if platform == 'twitter' %}
+                            Posts as tweets
+                        {% elif platform == 'threads' %}
+                            Posts as threads
+                        {% endif %}
+                    </div>
+                    <button 
+                        hx-post="/api/force-post-platform/{{ current_account_id }}/{{ platform }}"
+                        hx-trigger="click"
+                        hx-confirm="Generate and post to {{ platform|title }} only?"
+                        hx-target="#platform-post-result-{{ platform }}"
+                        class="w-full px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Test Post to {{ platform|title }}
+                    </button>
+                    <div id="platform-post-result-{{ platform }}" class="mt-2"></div>
+                </div>
+                {% endfor %}
             </div>
         </div>
 
@@ -131,11 +170,11 @@
                 <button 
                     hx-post="/api/force-post/{{ current_account_id }}"
                     hx-trigger="click"
-                    hx-confirm="Generate and post a tweet for {{ current_account.get('display_name', current_account_id) }}?"
+                    hx-confirm="Generate and post to all platforms for {{ current_account.get('display_name', current_account_id) }}?"
                     hx-indicator="#force-post-loading"
                     hx-target="#force-post-result"
                     class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    Force Post ({{ current_account.get('display_name', current_account_id) }})
+                    Force Post All Platforms ({{ current_account.get('display_name', current_account_id) }})
                 </button>
                 
                 <button 
@@ -149,7 +188,7 @@
             </div>
             
             <div id="force-post-loading" class="htmx-indicator mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-                🤖 Generating and posting tweet for {{ current_account.get('display_name', current_account_id) }}... This may take up to 60 seconds.
+                🤖 Generating and posting to all platforms for {{ current_account.get('display_name', current_account_id) }}... This may take up to 60 seconds.
             </div>
             <div id="force-post-result" class="mt-4"></div>
         </div>
@@ -294,10 +333,12 @@
                             <span class="text-sm text-gray-600">OpenAI API</span>
                             <span class="status-indicator status-healthy"></span>
                         </div>
+                        {% for platform in current_account.get('posting_platforms', ['twitter']) %}
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Twitter API</span>
+                            <span class="text-sm text-gray-600">{{ platform|title }} API</span>
                             <span class="status-indicator status-healthy"></span>
                         </div>
+                        {% endfor %}
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-600">ChromaDB</span>
                             <span class="status-indicator status-healthy"></span>

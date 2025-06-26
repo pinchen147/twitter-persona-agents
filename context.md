@@ -1,8 +1,8 @@
-# Twitter Persona Agents - Application Context
+# Multi-Platform Persona Agents - Application Context
 
 ## Overview
 
-Twitter Persona Agents is a sophisticated multi-account autonomous Twitter bot system that generates and posts insightful content by synthesizing knowledge from ingested materials. Originally designed for philosophical content, the system now powers startup wisdom bots that share insights from Paul Graham, Y Combinator luminaries, and tech visionaries like Elon Musk, Sam Altman, and Brian Chesky. The system supports unlimited Twitter accounts, each with unique personas and knowledge bases.
+Multi-Platform Persona Agents is a sophisticated multi-account autonomous social media bot system that generates and posts insightful content by synthesizing knowledge from ingested materials. Originally designed for philosophical content, the system now powers startup wisdom bots that share insights from Paul Graham, Y Combinator luminaries, and tech visionaries like Elon Musk, Sam Altman, and Brian Chesky. The system supports unlimited accounts across multiple platforms (Twitter and Meta's Threads), each with unique personas and knowledge bases.
 
 ## Core Philosophy
 
@@ -28,8 +28,8 @@ The system is built on principles of:
 │  │(APScheduler)│  │   Engine     │  │  (Multi-Account)│     │
 │  └─────────────┘  └──────────────┘  └─────────────────┘     │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐     │
-│  │  Monitoring │  │   Security   │  │ Twitter Client  │     │
-│  │  (SQLite)   │  │  (Filtering) │  │   (Tweepy)      │     │
+│  │  Monitoring │  │   Security   │  │Multi-Platform   │     │
+│  │  (SQLite)   │  │  (Filtering) │  │    Poster       │     │
 │  └─────────────┘  └──────────────┘  └─────────────────┘     │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -44,12 +44,15 @@ The system is built on principles of:
 ┌─────────────────────────────────────────────────────────────┐
 │                    External Services                        │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐     │
-│  │  OpenAI API │  │ Twitter API  │  │  PDF Books      │     │
-│  │ (GPT-4/o3)  │  │     (v2)     │  │  (Source)       │     │
+│  │  OpenAI API │  │ Twitter API  │  │  Threads API    │     │
+│  │ (GPT-4/o3)  │  │     (v2)     │  │   (Meta)        │     │
 │  └─────────────┘  └──────────────┘  └─────────────────┘     │
+│                   ┌──────────────┐                          │
+│                   │  PDF Books   │                          │
+│                   │  (Source)    │                          │
+│                   └──────────────┘                          │
 └─────────────────────────────────────────────────────────────┘
 ```
-
 ## Component Breakdown
 
 ### 1. Web Interface (`app/main.py`)
@@ -68,11 +71,11 @@ The system is built on principles of:
   - `/health` - System health checks
 
 ### 2. Account Management (`app/account_manager.py`)
-- **Purpose**: Manages multiple Twitter account configurations
+- **Purpose**: Manages multiple social media account configurations
 - **Features**:
   - Dynamic account loading from JSON files
   - Configuration validation
-  - Credential security
+  - Credential security for multiple platforms
   - Hot-reload on file changes
 - **Account Structure**:
   ```json
@@ -82,7 +85,9 @@ The system is built on principles of:
     "persona": "Personality description",
     "exemplars": ["Example tweets"],
     "vector_collection": "knowledge_base_name",
-    "twitter_credentials": {...}
+    "posting_platforms": ["twitter", "threads"],
+    "twitter_credentials": {...},
+    "threads_credentials": {...}
   }
   ```
 
