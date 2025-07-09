@@ -4,6 +4,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python: 3.11+](https://img.shields.io/badge/python-3.11+-blue)
 ![Multi-Account Support](https://img.shields.io/badge/multi--account-supported-orange)
+![Multi-Platform Support](https://img.shields.io/badge/multi--account-supported-red)
 
 A **multi-account autonomous social media agent** that generates and posts insightful content across **Twitter and Meta's Threads** by synthesizing philosophical teachings. Originally designed to blend **Eckhart Tolle** (presence, mindfulness, ego-dissolution) and **Carolyn Elliott** (existential kink, shadow work), the system now supports unlimited accounts across multiple platforms with unique personas.
 
