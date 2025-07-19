@@ -54,7 +54,7 @@ if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
     echo "View status:      docker-compose -f docker-compose.prod.yml ps"
     echo ""
     echo "🔄 The bot will automatically:"
-    echo "- Post tweets every 6 hours (4 times per day)"
+    echo "- Post tweets every 12 hours (2 times per day)"
     echo "- Restart if it crashes (unless-stopped policy)"
     echo "- Catch up on missed posts when restarted"
     echo ""

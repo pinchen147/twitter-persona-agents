@@ -11,6 +11,8 @@ services:
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=production
+      - THREADS_ACCESS_TOKEN=${THREADS_ACCESS_TOKEN}
+      - THREADS_USER_ID=${THREADS_USER_ID}
     env_file:
       - config/.env
     depends_on:

@@ -94,7 +94,7 @@ The system is built on principles of:
 ### 3. Scheduler (`app/scheduler.py`)
 - **Purpose**: Automated posting at regular intervals
 - **Features**:
-  - Posts every 6 hours (4 tweets/day per account)
+  - Posts every 12 hours (2 tweets/day per account)
   - Catch-up system for missed posts
   - Parallel multi-account posting
   - Health monitoring integration
@@ -214,7 +214,7 @@ The system is built on principles of:
 ### Main Config (`config/config.yaml`)
 ```yaml
 scheduler:
-  post_interval_hours: 6
+  post_interval_hours: 12
   catch_up_enabled: true
   max_catch_up_posts: 3
 
@@ -271,7 +271,7 @@ Each account has its own JSON configuration with persona, exemplars, and credent
 - **Tweet Generation**: 3-8 seconds average
 - **API Costs**: $0.02-0.15 per tweet (model dependent)
 - **Memory Usage**: ~200MB base + vector DB size
-- **Posting Schedule**: 4 tweets/day per account (configurable)
+- **Posting Schedule**: 2 tweets/day per account (configurable)
 
 ## Future Enhancements
 

@@ -83,7 +83,7 @@ This is a **multi-account social media bot system** where each account operates 
 - **Account Configuration**: Each account defined in `accounts/{account_id}.json`
 - **Multi-Platform Support**: Each account can post to Twitter, Threads, or both
 - **Independent Personas**: Unique voice, exemplar posts, and knowledge bases per account
-- **Unified Scheduling**: Single scheduler posts to all accounts across all platforms (every 6 hours = 4 posts/day)
+- **Unified Scheduling**: Single scheduler posts to all accounts across all platforms (every 12 hours = 2 posts/day)
 - **Platform Adaptation**: Content optimized for each platform's character limits (Twitter 280, Threads 500)
 - **Shared Infrastructure**: Common generation engine, monitoring, and health systems
 
@@ -145,7 +145,7 @@ Example configuration with multi-platform support:
 
 ```yaml
 scheduler:
-  post_interval_hours: 6
+  post_interval_hours: 12
   catch_up_enabled: true
   max_catch_up_posts: 3
 

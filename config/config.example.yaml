@@ -10,7 +10,7 @@ app:
 # Posting schedule
 scheduler:
   enabled: true
-  post_interval_hours: 6  # Post every 6 hours (4 times per day)
+  post_interval_hours: 12  # Post every 12 hours (2 times per day)
   timezone: "UTC"
   
   # Catch-up posting for missed runs

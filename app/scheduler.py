@@ -6,7 +6,7 @@ across all configured accounts without manual intervention. It uses APScheduler 
 reliable task scheduling and includes sophisticated catch-up logic for missed posts.
 
 Key Features:
-- Automated posting at configurable intervals (default: every 6 hours)
+- Automated posting at configurable intervals (default: every 12 hours)
 - Multi-account support with parallel posting
 - Catch-up system for missed posting windows during downtime
 - Health monitoring with automatic issue detection
@@ -30,7 +30,7 @@ Catch-up Logic:
 Configuration (config.yaml):
 scheduler:
   enabled: true
-  post_interval_hours: 6  # 4 posts per day
+  post_interval_hours: 12  # 2 posts per day
   catch_up_enabled: true
   max_catch_up_posts: 3
   catch_up_grace_period_hours: 1
@@ -68,8 +68,8 @@ class TweetScheduler:
         scheduler_config = config.get("scheduler", {})
         self.enabled = scheduler_config.get("enabled", True)
         self.interval_hours = scheduler_config.get(
-            "post_interval_hours", 4
-        )  # Changed from 6 to 4 hours (6 posts per day)
+            "post_interval_hours", 12
+        )
         self.timezone = scheduler_config.get("timezone", "UTC")
 
         # Catch-up configuration
